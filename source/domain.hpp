@@ -56,7 +56,7 @@ public:
   PetscScalar _bCoordTrans; // scalar for how aggressive the coordinate transform is
 
   // checkpoint enabling
-  int             _saveChkpts, _restartFromChkpt, _restartFromChkptSS;
+  int             _saveChkpts, _restartFromChkpt,_restartFromChkptSS;
   PetscFileMode   _outputFileMode; // maybe change to outFileMode after getting rid of Yuyun's implementation (don't want to get them confused right now)
   PetscInt        _prevChkptTimeStep1D,_prevChkptTimeStep2D; // time step index of simulation data that corresponds to checkpoint data
   PetscInt _ckpt, _ckptNumber, _interval;
@@ -86,6 +86,7 @@ private:
   PetscErrorCode allocateFields();
   PetscErrorCode setFields();
   PetscErrorCode loadCheckpoint();
+  PetscErrorCode loadCheckpointSS();
   PetscErrorCode setScatters(); // generate scatters to move indices of one vector to a differently sized vector (e.g. displacement -> slip)
   PetscErrorCode testScatters();
 };

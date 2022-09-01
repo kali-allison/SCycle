@@ -161,6 +161,7 @@ public:
   PetscErrorCode writeContext(const string outputDir, PetscViewer& viewer);
   PetscErrorCode writeCheckpoint(PetscViewer& viewer);
   PetscErrorCode loadCheckpoint();
+  PetscErrorCode loadCheckpointSS();
 };
 
 
@@ -199,6 +200,7 @@ public:
   PetscErrorCode updatePrestress(const PetscScalar currT);
   PetscErrorCode writeCheckpoint(PetscViewer& viewer);
   PetscErrorCode loadCheckpoint();
+  PetscErrorCode loadCheckpointSS();
 };
 
 

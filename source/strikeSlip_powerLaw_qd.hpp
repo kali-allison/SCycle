@@ -86,7 +86,7 @@ public:
   Vec                                    _JjSSVec; // Vec containing current index (Ii) for steady state iteration
   PetscScalar                            _fss_T,_fss_EffVisc,_fss_grainSize; // damping coefficients, must be < 1
   PetscScalar                            _gss_t; // guess steady state strain rate
-  PetscInt                               _maxSSIts_effVisc,_maxSSIts_tot; // max iterations allowed
+  PetscInt                               _SS_index,_maxSSIts_effVisc,_maxSSIts_tot; // max iterations allowed
   PetscScalar                            _atolSS_effVisc;
   PetscScalar                            _maxSSIts_time; // (s) max time during time integration phase
 
@@ -138,14 +138,15 @@ public:
 
 
   // steady-state iteration methods
-  PetscErrorCode writeSS(const int Ii, const string outputDir);
+  PetscErrorCode writeSS(const int Ii);
   PetscErrorCode guessTauSS(map<string,Vec>& varSS);
   PetscErrorCode solveSSb();
   PetscErrorCode integrateSS();
-  PetscErrorCode solveSS(const PetscInt Jj, const string baseOutDir);
+  PetscErrorCode initiateIntegrandSS();
+  PetscErrorCode solveSS(const PetscInt Jj);
   PetscErrorCode setSSBCs();
-  PetscErrorCode solveSSViscoelasticProblem(const PetscInt Jj, const string baseOutDir); // iterate for effective viscosity
-  PetscErrorCode solveSStau(const PetscInt Jj, const string outputDir); // brute force for steady-state shear stress on fault
+  PetscErrorCode solveSSViscoelasticProblem(const PetscInt Jj); // iterate for effective viscosity
+  PetscErrorCode solveSStau(const PetscInt Jj); // brute force for steady-state shear stress on fault
   PetscErrorCode solveSSHeatEquation(const PetscInt Jj); // brute force for steady-state temperature
   PetscErrorCode solveSSGrainSize(const PetscInt Jj); // solve for steady-state grain size distribution
 
@@ -170,6 +171,7 @@ public:
   PetscErrorCode writeStep2D(PetscInt stepCount, PetscScalar time);
   PetscErrorCode writeCheckpoint();
   PetscErrorCode loadCheckpoint();
+  PetscErrorCode loadCheckpointSS();
 
   // debugging and MMS tests
   PetscErrorCode measureMMSError();

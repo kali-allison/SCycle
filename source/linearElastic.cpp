@@ -547,6 +547,54 @@ PetscErrorCode LinearElastic::loadCheckpoint()
   return ierr;
 }
 
+// load data from a checkpoint
+PetscErrorCode LinearElastic::loadCheckpointSS()
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    string funcName = "LinearElastic::loadCheckpointSS";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+
+  // load saved checkpoint data
+  PetscViewer viewer;
+
+  string fileName = _outputDir + "data_context.h5";
+  ierr = PetscViewerHDF5Open(PETSC_COMM_WORLD, fileName.c_str(), FILE_MODE_READ, &viewer);CHKERRQ(ierr);
+  ierr = PetscViewerHDF5PushGroup(viewer, "/momBal");                   CHKERRQ(ierr);
+  ierr = VecLoad(_mu, viewer);                                          CHKERRQ(ierr);
+  ierr = VecLoad(_rho, viewer);                                         CHKERRQ(ierr);
+  ierr = VecLoad(_cs, viewer);                                          CHKERRQ(ierr);
+  ierr = PetscViewerHDF5PopGroup(viewer);                               CHKERRQ(ierr);
+  PetscViewerDestroy(&viewer);
+
+  fileName = _outputDir + "data_steadyState.h5";
+  ierr = PetscViewerHDF5Open(PETSC_COMM_WORLD, fileName.c_str(), FILE_MODE_READ, &viewer);CHKERRQ(ierr);
+  ierr = PetscViewerHDF5PushTimestepping(viewer);                       CHKERRQ(ierr);
+  ierr = PetscViewerHDF5PushGroup(viewer, "/momBal");                   CHKERRQ(ierr);
+
+  ierr = VecLoad(_surfDisp,viewer);                                     CHKERRQ(ierr);
+  ierr = VecLoad(_bcL,viewer);                                          CHKERRQ(ierr);
+  ierr = VecLoad(_bcR,viewer);                                          CHKERRQ(ierr);
+  ierr = VecLoad(_bcRShift,viewer);                                     CHKERRQ(ierr);
+  ierr = VecLoad(_bcB,viewer);                                          CHKERRQ(ierr);
+  ierr = VecLoad(_bcT,viewer);                                          CHKERRQ(ierr);
+
+  ierr = VecLoad(_u,viewer);                                            CHKERRQ(ierr);
+  ierr = VecLoad(_sxy,viewer);                                          CHKERRQ(ierr);
+  if (_computeSxz) {
+    ierr = VecLoad(_sxy,viewer);                                        CHKERRQ(ierr);
+  }
+  ierr = PetscViewerHDF5PopGroup(viewer);                               CHKERRQ(ierr);
+  PetscViewerDestroy(&viewer);
+
+  #if VERBOSE > 1
+    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+
+  return ierr;
+}
+
 
 // set up SBP operators
 PetscErrorCode LinearElastic::setUpSBPContext()

@@ -197,9 +197,9 @@ PetscErrorCode OdeSolver_WaveEq::loadCheckpoint(const std::string inputDir)
   PetscViewer viewer;
 
   ierr = PetscViewerHDF5Open(PETSC_COMM_WORLD, fileName.c_str(), FILE_MODE_READ, &viewer);CHKERRQ(ierr);
-  ierr = PetscViewerHDF5PushGroup(viewer, "/time1D");                                                  CHKERRQ(ierr);
-  ierr = PetscViewerHDF5ReadAttribute(viewer, "time1D", "stepCount", PETSC_INT, NULL, &_stepCount); CHKERRQ(ierr);
-  ierr = PetscViewerHDF5ReadAttribute(viewer, "time1D", "deltaT", PETSC_SCALAR, NULL, &_deltaT); CHKERRQ(ierr);
+  ierr = PetscViewerHDF5PushGroup(viewer, "/odeSolver_WaveEq");                                                  CHKERRQ(ierr);
+  ierr = PetscViewerHDF5ReadAttribute(viewer, "odeSolver_WaveEq_chkpt_data", "stepCount", PETSC_INT, NULL, &_stepCount); CHKERRQ(ierr);
+  ierr = PetscViewerHDF5ReadAttribute(viewer, "odeSolver_WaveEq_chkpt_data", "deltaT", PETSC_SCALAR, NULL, &_deltaT); CHKERRQ(ierr);
   ierr = PetscViewerHDF5PopGroup(viewer);                                                              CHKERRQ(ierr);
 
   ierr = PetscViewerHDF5PushGroup(viewer, "/odeSolver_WaveEq/varNext"); CHKERRQ(ierr);
@@ -235,27 +235,38 @@ PetscErrorCode OdeSolver_WaveEq::writeCheckpoint(PetscViewer &viewer)
   #endif
   PetscErrorCode ierr;
 
-  ierr = PetscViewerHDF5PushGroup(viewer, "/time1D"); CHKERRQ(ierr);
-  ierr = PetscViewerHDF5WriteAttribute(viewer, "time1D", "stepCount", PETSC_INT, &_stepCount); CHKERRQ(ierr);
-  ierr = PetscViewerHDF5WriteAttribute(viewer, "time1D", "deltaT", PETSC_SCALAR, &_deltaT); CHKERRQ(ierr);
-  ierr = PetscViewerHDF5PopGroup(viewer); CHKERRQ(ierr);
+  // initiate Vec to serve as underlying data set for step count and deltaT to be written out as attributes
+  Vec temp;
+  VecCreateMPI(PETSC_COMM_WORLD, 1, 1, &temp);
+  VecSetBlockSize(temp, 1);
+  PetscObjectSetName((PetscObject) temp, "odeSolver_WaveEq_chkpt_data");
+  VecSet(temp,0.);
 
-  ierr = PetscViewerHDF5PushGroup(viewer, "/odeSolver_WaveEq/varNext"); CHKERRQ(ierr);
-  for (map<string,Vec>::iterator it = _varNext.begin(); it!=_varNext.end(); it++ ) {
-    ierr = PetscObjectSetName((PetscObject) _varNext[it->first], (it->first).c_str()); CHKERRQ(ierr);
-    ierr = VecView(_varNext[it->first], viewer);                          CHKERRQ(ierr);
-  }
+  ierr = PetscViewerHDF5PushGroup(viewer, "/odeSolver_WaveEq");        CHKERRQ(ierr);
+  ierr = VecView(temp, viewer);                                         CHKERRQ(ierr);
+  ierr = PetscViewerHDF5WriteAttribute(viewer, "odeSolver_WaveEq_chkpt_data", "stepCount", PETSC_INT, &_stepCount); CHKERRQ(ierr);
+  ierr = PetscViewerHDF5WriteAttribute(viewer, "odeSolver_WaveEq_chkpt_data", "deltaT", PETSC_SCALAR, &_deltaT); CHKERRQ(ierr);
   ierr = PetscViewerHDF5PopGroup(viewer); CHKERRQ(ierr);
+  VecDestroy(&temp);
 
   ierr = PetscViewerHDF5PushGroup(viewer, "/odeSolver_WaveEq/var"); CHKERRQ(ierr);
   for (map<string,Vec>::iterator it = _var.begin(); it!=_var.end(); it++ ) {
     ierr = PetscObjectSetName((PetscObject) _var[it->first], (it->first).c_str()); CHKERRQ(ierr);
     ierr = VecView(_var[it->first], viewer);                          CHKERRQ(ierr);
   }
+  ierr = PetscViewerHDF5PopGroup(viewer); CHKERRQ(ierr);
+
   ierr = PetscViewerHDF5PushGroup(viewer, "/odeSolver_WaveEq/varPrev"); CHKERRQ(ierr);
   for (map<string,Vec>::iterator it = _varPrev.begin(); it!=_varPrev.end(); it++ ) {
     ierr = PetscObjectSetName((PetscObject) _varPrev[it->first], (it->first).c_str()); CHKERRQ(ierr);
     ierr = VecView(_varPrev[it->first], viewer);                          CHKERRQ(ierr);
+  }
+  ierr = PetscViewerHDF5PopGroup(viewer); CHKERRQ(ierr);
+
+  ierr = PetscViewerHDF5PushGroup(viewer, "/odeSolver_WaveEq/varNext"); CHKERRQ(ierr);
+  for (map<string,Vec>::iterator it = _varNext.begin(); it!=_varNext.end(); it++ ) {
+    ierr = PetscObjectSetName((PetscObject) _varNext[it->first], (it->first).c_str()); CHKERRQ(ierr);
+    ierr = VecView(_varNext[it->first], viewer);                          CHKERRQ(ierr);
   }
   ierr = PetscViewerHDF5PopGroup(viewer); CHKERRQ(ierr);
 

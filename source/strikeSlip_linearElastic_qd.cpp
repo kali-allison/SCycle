@@ -707,6 +707,7 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::writeCheckpoint()
   ierr = VecView(_time1DVec, _viewer_chkpt);                            CHKERRQ(ierr);
   ierr = VecView(_dtime1DVec, _viewer_chkpt);                           CHKERRQ(ierr);
   ierr = PetscViewerHDF5WriteAttribute(_viewer_chkpt, "time1D", "chkptTimeStep", PETSC_INT, &_chkptTimeStep1D); CHKERRQ(ierr);
+  ierr = PetscViewerHDF5WriteAttribute(_viewer_chkpt, "time1D", "stepCount", PETSC_INT, &_stepCount); CHKERRQ(ierr);
   ierr = PetscViewerHDF5WriteAttribute(_viewer_chkpt, "time1D", "currTime", PETSC_SCALAR, &_currTime); CHKERRQ(ierr);
   ierr = PetscViewerHDF5PopGroup(_viewer_chkpt);                        CHKERRQ(ierr);
 

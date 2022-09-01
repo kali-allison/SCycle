@@ -21,7 +21,7 @@ StrikeSlip_PowerLaw_qd::StrikeSlip_PowerLaw_qd(Domain&D)
     _chkptTimeStep1D(0), _chkptTimeStep2D(0),
     _JjSSVec(NULL),
     _fss_T(0.15),_fss_EffVisc(0.2),_fss_grainSize(0.2),_gss_t(1e-10),
-    _maxSSIts_effVisc(50),_maxSSIts_tot(100),
+    _SS_index(0),_maxSSIts_effVisc(50),_maxSSIts_tot(100),
     _atolSS_effVisc(1e-4),_maxSSIts_time(5e10),
     _integrateTime(0),_writeTime(0),_linSolveTime(0),_factorTime(0),
     _startTime(MPI_Wtime()),_miscTime(0),
@@ -45,6 +45,10 @@ StrikeSlip_PowerLaw_qd::StrikeSlip_PowerLaw_qd(Domain&D)
 
   if (_D->_restartFromChkpt) {
     loadCheckpoint();
+    _guessSteadyStateICs = 0;
+  }
+  if (_D->_restartFromChkptSS) {
+    loadCheckpointSS();
     _guessSteadyStateICs = 0;
   }
 
@@ -311,6 +315,12 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::allocateFields()
   ierr = PetscObjectSetName((PetscObject) _dtime2DVec, "dtime2D"); CHKERRQ(ierr);
   ierr = VecSet(_dtime2DVec,_deltaT); CHKERRQ(ierr);
 
+  // initiate Vecs to hold index Jj
+  VecCreateMPI(PETSC_COMM_WORLD, 1, 1, &_JjSSVec);
+  VecSetBlockSize(_JjSSVec, 1);
+  PetscObjectSetName((PetscObject) _JjSSVec, "SS_index");
+  VecSet(_JjSSVec,_SS_index);
+
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
   #endif
@@ -450,8 +460,9 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::initiateIntegrand()
   VecCopy(_varEx["slip"],_fault->_slip);
 
   if (_guessSteadyStateICs) {
-    solveSS(0,_outputDir);
-    writeSS(0,_outputDir);
+    initiateIntegrandSS();
+    solveSS(0);
+    writeSS(0);
     VecDestroy(&_JjSSVec);
   }
   { // set up KSP context for time integration
@@ -499,6 +510,10 @@ double startTime = MPI_Wtime();
   _stepCount = stepCount;
   _deltaT = deltaT;
   _currTime = time;
+    VecSet(_time1DVec,time);
+  VecSet(_dtime1DVec,_deltaT);
+  VecSet(_time2DVec,time);
+  VecSet(_dtime2DVec,_deltaT);
 
   if ( (_stride1D>0 &&_currTime == _maxTime) || (_stride1D>0 && stepCount % _stride1D == 0)) {
     ierr = writeStep1D(stepCount,time); CHKERRQ(ierr);
@@ -558,10 +573,6 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::writeStep1D(PetscInt stepCount, PetscScal
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-  // update Vecs to reflect current time and time step
-  VecSet(_time1DVec,time);
-  VecSet(_dtime1DVec,_deltaT);
-
   if (_viewer1D == NULL ) {
     // initiate viewer
     string outFileName = _outputDir + "data_1D.h5";
@@ -607,10 +618,6 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::writeStep2D(PetscInt stepCount, PetscScal
   #endif
 
 
-  // update Vecs to reflect current time and time step
-  VecSet(_time2DVec,time);
-  VecSet(_dtime2DVec,_deltaT);
-
   if (_viewer2D == NULL ) {
     // initiate viewer
     string outFileName = _outputDir + "data_2D.h5";
@@ -626,7 +633,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::writeStep2D(PetscInt stepCount, PetscScal
 
     ierr = VecView(_time2DVec, _viewer2D);                              CHKERRQ(ierr);
     ierr = VecView(_dtime2DVec, _viewer2D);                             CHKERRQ(ierr);
-    if (_JjSSVec != NULL) { ierr = VecView(_JjSSVec, _viewer1D); CHKERRQ(ierr); }
+    if (_JjSSVec != NULL) { ierr = VecView(_JjSSVec, _viewer2D); CHKERRQ(ierr); }
     ierr = PetscViewerHDF5PopTimestepping(_viewer2D);                   CHKERRQ(ierr);
     ierr = PetscViewerHDF5PopGroup(_viewer2D);                          CHKERRQ(ierr);
   }
@@ -636,7 +643,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::writeStep2D(PetscInt stepCount, PetscScal
     ierr = PetscViewerHDF5IncrementTimestep(_viewer2D);                 CHKERRQ(ierr);
     ierr = VecView(_time2DVec, _viewer2D);                              CHKERRQ(ierr);
     ierr = VecView(_dtime2DVec, _viewer2D);                             CHKERRQ(ierr);
-    if (_JjSSVec != NULL) { ierr = VecView(_JjSSVec, _viewer1D); CHKERRQ(ierr); }
+    if (_JjSSVec != NULL) { ierr = VecView(_JjSSVec, _viewer2D); CHKERRQ(ierr); }
     ierr = PetscViewerHDF5PopTimestepping(_viewer2D);                   CHKERRQ(ierr);
     ierr = PetscViewerHDF5PopGroup(_viewer2D);                          CHKERRQ(ierr);
   }
@@ -681,6 +688,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::writeCheckpoint()
   ierr = VecView(_time1DVec, _viewer_chkpt);                            CHKERRQ(ierr);
   ierr = VecView(_dtime1DVec, _viewer_chkpt);                           CHKERRQ(ierr);
   ierr = PetscViewerHDF5WriteAttribute(_viewer_chkpt, "time1D", "chkptTimeStep", PETSC_INT, &_chkptTimeStep1D); CHKERRQ(ierr);
+  ierr = PetscViewerHDF5WriteAttribute(_viewer_chkpt, "time1D", "stepCount", PETSC_INT, &_stepCount); CHKERRQ(ierr);
   ierr = PetscViewerHDF5WriteAttribute(_viewer_chkpt, "time1D", "currTime", PETSC_SCALAR, &_currTime); CHKERRQ(ierr);
   ierr = PetscViewerHDF5PopGroup(_viewer_chkpt);                        CHKERRQ(ierr);
 
@@ -732,6 +740,39 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::loadCheckpoint()
   _initTime = _currTime;
   _initDeltaT = _deltaT;
   _maxStepCount = _maxStepCount + _stepCount;
+
+  #if VERBOSE > 1
+     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+  return ierr;
+}
+
+
+PetscErrorCode StrikeSlip_PowerLaw_qd::loadCheckpointSS()
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    std::string funcName = "StrikeSlip_PowerLaw_qd::loadCheckpointSS";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+
+  PetscViewer viewer;
+
+  string fileName = _outputDir + "data_steadyState.h5";
+  ierr = PetscViewerHDF5Open(PETSC_COMM_WORLD, fileName.c_str(), FILE_MODE_READ, &viewer);CHKERRQ(ierr);
+
+  ierr = PetscViewerFileSetMode(viewer,FILE_MODE_READ);                 CHKERRQ(ierr);
+  ierr = PetscViewerHDF5PushTimestepping(viewer);                       CHKERRQ(ierr);
+  ierr = PetscViewerHDF5PushGroup(viewer, "/steadyState");              CHKERRQ(ierr);
+  ierr = VecLoad(_JjSSVec, viewer);                                     CHKERRQ(ierr);
+  ierr = PetscViewerHDF5ReadAttribute(viewer, "SS_index", "SS_index", PETSC_INT, NULL, &_SS_index); CHKERRQ(ierr);
+  ierr = PetscViewerHDF5PopGroup(viewer);                               CHKERRQ(ierr);
+
+  PetscViewerDestroy(&viewer);
+
+  _SS_index++;
+  _maxSSIts_tot += _SS_index;
+
 
   #if VERBOSE > 1
      PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -856,6 +897,11 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::integrate()
   #endif
   double startTime = MPI_Wtime();
   _startIntegrateTime = MPI_Wtime();
+
+  // update momentum balance equation boundary conditions
+  ierr = _material->changeBCTypes(_mat_bcRType,_mat_bcTType,_mat_bcLType,_mat_bcBType); CHKERRQ(ierr);
+  Mat A; _material->_sbp->getA(A);
+  ierr = _material->setupKSP(_material->_ksp,_material->_pc,A,_material->_linSolverTrans); CHKERRQ(ierr);
 
   _stepCount = 0;
 
@@ -1163,38 +1209,33 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::integrateSS()
   #endif
   double startTime = MPI_Wtime();
 
-  std::string baseOutDir = _outputDir;
-  PetscInt Jj = 0;
-  // initiate Vecs to hold index Jj
-  VecCreateMPI(PETSC_COMM_WORLD, 1, 1, &_JjSSVec);
-  VecSetBlockSize(_JjSSVec, 1);
-  PetscObjectSetName((PetscObject) _JjSSVec, "SS_index");
-  VecSet(_JjSSVec,Jj);
-
   // initial guess for (thermo)mechanical problem
-  solveSS(Jj, baseOutDir);
-  writeSS(Jj,baseOutDir);
-  Jj = 1;
+  initiateIntegrandSS();
+  if (!_D->_restartFromChkptSS){
+    solveSS(_SS_index);
+    writeSS(_SS_index);
+    _SS_index++;
+  }
 
   // iterate to converge to steady-state solution
-  while (Jj < _maxSSIts_tot) {
-    PetscPrintf(PETSC_COMM_WORLD,"Jj = %i\n",Jj);
+  while (_SS_index < _maxSSIts_tot) {
+    PetscPrintf(PETSC_COMM_WORLD,"Jj = %i\n",_SS_index);
 
     // brute force time integrate for steady-state shear stress the fault
-    solveSStau(Jj,baseOutDir);
+    solveSStau(_SS_index);
 
     // iterate to find effective viscosity etc
-    solveSSViscoelasticProblem(Jj,baseOutDir);
+    solveSSViscoelasticProblem(_SS_index);
 
     // find steady-state temperature
-    if (_computeSSTemperature == 1) { solveSSHeatEquation(Jj); }
+    if (_computeSSTemperature == 1) { solveSSHeatEquation(_SS_index); }
     if (_thermalCoupling == "coupled") {
       _material->updateTemperature(_varSS["Temp"]);
       _fault->updateTemperature(_varSS["Temp"]);
     }
 
-    writeSS(Jj,baseOutDir);
-    Jj++;
+    writeSS(_SS_index);
+    _SS_index++;
   }
 
 
@@ -1316,11 +1357,11 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::guessTauSS(map<string,Vec>& varSS)
 }
 
 
-PetscErrorCode StrikeSlip_PowerLaw_qd::solveSS(const PetscInt Jj, const std::string baseOutDir)
+PetscErrorCode StrikeSlip_PowerLaw_qd::initiateIntegrandSS()
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "StrikeSlip_PowerLaw_qd::solveSS";
+    std::string funcName = "StrikeSlip_PowerLaw_qd::initiateIntegrandSS";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -1340,10 +1381,24 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::solveSS(const PetscInt Jj, const std::str
   _varSS["slipVel"] = _fault->_slipVel;
   _varSS["psi"] = _fault->_psi;
 
-  // set up KSP for steady-state solution
-  Mat A;
-  _material->_sbp->getA(A);
-  _material->setupKSP(_material->_ksp,_material->_pc,A,_material->_linSolverSS);
+
+  if (_varSS.find("Temp") == _varSS.end() ) {
+    Vec Temp; VecDuplicate(_he->_T,&Temp); VecCopy(_he->_T,Temp); _varSS["Temp"] = Temp;
+  }
+
+  #if VERBOSE > 1
+     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+  return ierr;
+}
+
+PetscErrorCode StrikeSlip_PowerLaw_qd::solveSS(const PetscInt Jj)
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    std::string funcName = "StrikeSlip_PowerLaw_qd::solveSS";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
 
   // estimate steady-state conditions for fault, material based on strain rate
   _fault->guessSS(_vL); // sets: slipVel, psi, tau
@@ -1351,7 +1406,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::solveSS(const PetscInt Jj, const std::str
 
   // estimate steady-state shear stress at y = 0
   guessTauSS(_varSS);
-  solveSSViscoelasticProblem(Jj,baseOutDir); // converge to steady state eta etc
+  solveSSViscoelasticProblem(Jj); // converge to steady state eta etc
 
   if (_computeSSTemperature == 1) { solveSSHeatEquation(Jj); }
   if (_thermalCoupling == "coupled") {
@@ -1366,7 +1421,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::solveSS(const PetscInt Jj, const std::str
 }
 
 
-PetscErrorCode StrikeSlip_PowerLaw_qd::solveSStau(const PetscInt Jj, const std::string baseOutDir)
+PetscErrorCode StrikeSlip_PowerLaw_qd::solveSStau(const PetscInt Jj)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -1400,7 +1455,8 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::solveSStau(const PetscInt Jj, const std::
 
   delete _quadEx; _quadEx = NULL;
   delete _quadImex; _quadImex = NULL;
-
+  PetscViewerDestroy(&_viewer1D); _viewer1D = NULL;
+  PetscViewerDestroy(&_viewer2D); _viewer2D = NULL;
 
   // impose ceiling on fault velocity: slipVel <= vL
   PetscScalar *V;
@@ -1429,13 +1485,18 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::solveSStau(const PetscInt Jj, const std::
 }
 
 // converge to steady state: effective viscosity, sxy, sxz, gVxy, gVxz, gVxy_t, gVxz_t, u
-PetscErrorCode StrikeSlip_PowerLaw_qd::solveSSViscoelasticProblem(const PetscInt Jj, const std::string baseOutDir)
+PetscErrorCode StrikeSlip_PowerLaw_qd::solveSSViscoelasticProblem(const PetscInt Jj)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
     std::string funcName = "StrikeSlip_PowerLaw_qd::solveSSViscoelasticProblem";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
+
+  // set up KSP for steady-state solution
+  Mat A;
+  _material->_sbp->getA(A);
+  _material->setupKSP(_material->_ksp,_material->_pc,A,_material->_linSolverSS);
 
   // set up rhs vector containing boundary condition data
   VecCopy(_varSS["tau"],_material->_bcL);
@@ -1594,7 +1655,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::solveSSGrainSize(const PetscInt Jj)
   return ierr;
 }
 
-PetscErrorCode StrikeSlip_PowerLaw_qd::writeSS(const int Ii, const std::string outputDir)
+PetscErrorCode StrikeSlip_PowerLaw_qd::writeSS(const int Ii)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -1622,10 +1683,11 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::writeSS(const int Ii, const std::string o
     string outFileName = _outputDir + "data_steadyState.h5";
     ierr = PetscViewerCreate(PETSC_COMM_WORLD, &_viewerSS);             CHKERRQ(ierr);
     ierr = PetscViewerSetType(_viewerSS, PETSCVIEWERBINARY);            CHKERRQ(ierr);
-    ierr = PetscViewerHDF5Open(PETSC_COMM_WORLD, outFileName.c_str(), FILE_MODE_WRITE, &_viewerSS);CHKERRQ(ierr);
+    ierr = PetscViewerHDF5Open(PETSC_COMM_WORLD, outFileName.c_str(), FILE_MODE_APPEND, &_viewerSS);CHKERRQ(ierr);
 
     ierr = PetscViewerHDF5PushGroup(_viewerSS, "/steadyState");         CHKERRQ(ierr);
     ierr = PetscViewerHDF5PushTimestepping(_viewerSS);                  CHKERRQ(ierr);
+    ierr = PetscViewerHDF5SetTimestep(_viewerSS, _SS_index);            CHKERRQ(ierr);
   }
   else {
     ierr = PetscViewerHDF5PushGroup(_viewerSS, "/steadyState");         CHKERRQ(ierr);
@@ -1634,6 +1696,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::writeSS(const int Ii, const std::string o
   }
 
   ierr = VecView(_JjSSVec, _viewerSS);                                  CHKERRQ(ierr);
+  ierr = PetscViewerHDF5WriteAttribute(_viewerSS, "SS_index", "SS_index", PETSC_INT, &_SS_index); CHKERRQ(ierr);
   ierr = PetscViewerHDF5PopTimestepping(_viewerSS);                     CHKERRQ(ierr);
   ierr = PetscViewerHDF5PopGroup(_viewerSS);                            CHKERRQ(ierr);
 

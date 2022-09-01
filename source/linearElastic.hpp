@@ -115,6 +115,7 @@ public:
 
   // checkpointing functions
   PetscErrorCode loadCheckpoint();
+  PetscErrorCode loadCheckpointSS();
   PetscErrorCode writeCheckpoint(PetscViewer& viewer);
 
   // MMS functions

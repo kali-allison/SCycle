@@ -15,7 +15,7 @@ Domain::Domain(const char *file)
   _order(4),_Ny(-1),_Nz(-1),_Ly(-1),_Lz(-1),_vL(1e-9),
   _q(NULL),_r(NULL),_y(NULL),_z(NULL),_y0(NULL),_z0(NULL),_dq(1),_dr(1),
   _bCoordTrans(-1),
-  _saveChkpts(1), _restartFromChkpt(1),_restartFromChkptSS(1),_outputFileMode(FILE_MODE_WRITE),_prevChkptTimeStep1D(0),_prevChkptTimeStep2D(0),
+  _saveChkpts(1), _restartFromChkpt(1),_restartFromChkptSS(0),_outputFileMode(FILE_MODE_WRITE),_prevChkptTimeStep1D(0),_prevChkptTimeStep2D(0),
   _ckpt(0), _ckptNumber(0), _interval(1e4),_outFileMode(FILE_MODE_APPEND)
 {
   #if VERBOSE > 1
@@ -41,8 +41,9 @@ Domain::Domain(const char *file)
   #endif
 
   allocateFields();
-  if (_restartFromChkpt == 1) { loadCheckpoint(); }
-  if (_restartFromChkpt == 0) { setFields(); }
+  if (_restartFromChkpt) { loadCheckpoint(); }
+  else if (_restartFromChkptSS) { loadCheckpointSS(); }
+  if (!_restartFromChkpt && !_restartFromChkptSS) { setFields(); }
   setScatters();
 
   #if VERBOSE > 1
@@ -275,8 +276,12 @@ PetscErrorCode Domain::checkInput()
   assert(_ckpt >= 0 && _ckptNumber >= 0);
   assert(_interval >= 0);
 
+  if (_systemEvolutionType == "steadyStateIts" && _restartFromChkpt == 1) {
+    _restartFromChkpt = 0;
+    _restartFromChkptSS = 1;
+  }
   if (_systemEvolutionType == "steadyStateIts") {
-    assert(_restartFromChkpt == 0);
+    _outputFileMode = FILE_MODE_WRITE;
   }
 
   #if VERBOSE > 1
@@ -542,6 +547,50 @@ PetscErrorCode Domain::loadCheckpoint()
   }
   else {
     _restartFromChkpt = 0;
+    _outputFileMode = FILE_MODE_WRITE;
+    PetscPrintf(PETSC_COMM_WORLD,"\n\ndo not restart from checkpoint\n\n");
+  }
+
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+    CHKERRQ(ierr);
+  #endif
+  return ierr;
+}
+
+PetscErrorCode Domain::loadCheckpointSS()
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    string funcName = "Domain::allocateFields";
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),FILENAME);
+    CHKERRQ(ierr);
+  #endif
+
+  string fileName1 = _outputDir + "data_steadyState.h5";
+  string fileName2 = _outputDir + "data_context.h5";
+
+  bool fileExists = 0;
+  fileExists = doesFileExist(fileName1) && doesFileExist(fileName2);
+  if (fileExists && _restartFromChkptSS == 1) {
+    _outputFileMode = FILE_MODE_WRITE;
+    PetscPrintf(PETSC_COMM_WORLD,"Note: will start steady-state simulation from previous checkpoint.\n");
+
+    // load saved checkpoint data
+    PetscViewer viewer_prev_checkpoint;
+
+    ierr = PetscViewerHDF5Open(PETSC_COMM_WORLD, fileName2.c_str(), FILE_MODE_READ, &viewer_prev_checkpoint);CHKERRQ(ierr);
+    ierr = PetscViewerHDF5PushGroup(viewer_prev_checkpoint, "/domain");   CHKERRQ(ierr);
+    ierr = VecLoad(_q,viewer_prev_checkpoint);                            CHKERRQ(ierr);
+    ierr = VecLoad(_r,viewer_prev_checkpoint);                            CHKERRQ(ierr);
+    ierr = VecLoad(_y,viewer_prev_checkpoint);                            CHKERRQ(ierr);
+    ierr = VecLoad(_z,viewer_prev_checkpoint);                            CHKERRQ(ierr);
+    ierr = PetscViewerHDF5PopGroup(viewer_prev_checkpoint);               CHKERRQ(ierr);
+
+    PetscViewerDestroy(&viewer_prev_checkpoint);
+  }
+  else {
+    _restartFromChkptSS = 0;
     _outputFileMode = FILE_MODE_WRITE;
     PetscPrintf(PETSC_COMM_WORLD,"\n\ndo not restart from checkpoint\n\n");
   }

@@ -88,6 +88,7 @@ class GrainSizeEvolution
     PetscErrorCode writeStep(PetscViewer& viewer);
     PetscErrorCode writeCheckpoint(PetscViewer& viewer);
     PetscErrorCode loadCheckpoint();
+    PetscErrorCode loadCheckpointSS();
 
 };
 

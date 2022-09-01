@@ -738,3 +738,57 @@ PetscErrorCode GrainSizeEvolution::loadCheckpoint()
 }
 
 
+
+PetscErrorCode GrainSizeEvolution::loadCheckpointSS()
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    string funcName = "GrainSizeEvolution::loadCheckpointSS";
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s at time %g\n",funcName.c_str(),FILENAME,time);
+    CHKERRQ(ierr);
+  #endif
+
+  PetscViewer viewer;
+
+  string fileName = _outputDir + "data_context.h5";
+  ierr = PetscViewerHDF5Open(PETSC_COMM_WORLD, fileName.c_str(), FILE_MODE_READ, &viewer);CHKERRQ(ierr);
+  ierr = PetscViewerHDF5PushGroup(viewer, "/grainSizeEv");               CHKERRQ(ierr);
+
+  ierr = VecLoad(_f, viewer);                                           CHKERRQ(ierr);
+  if (_grainSizeEvType=="transient" || _grainSizeEvType=="steadyState" || _grainSizeEvType=="constant" ||
+    _grainSizeEvTypeSS=="transient" ||  _grainSizeEvTypeSS=="steadyState" ||  _grainSizeEvTypeSS=="constant") {
+    ierr = PetscViewerHDF5PushGroup(viewer, "/grainSizeEv/wattmeter");      CHKERRQ(ierr);
+    ierr = VecLoad(_A, viewer);                                         CHKERRQ(ierr);
+    ierr = VecLoad(_QR, viewer);                                        CHKERRQ(ierr);
+    ierr = VecLoad(_p, viewer);                                         CHKERRQ(ierr);
+    ierr = VecLoad(_gamma, viewer);                                     CHKERRQ(ierr);
+    ierr = PetscViewerHDF5PopGroup(viewer);                             CHKERRQ(ierr);
+  }
+  if (_grainSizeEvType == "piezometer" || _grainSizeEvTypeSS == "piezometer") {
+    ierr = PetscViewerHDF5PushGroup(viewer, "/grainSizeEv/piezometer");     CHKERRQ(ierr);
+    ierr = VecLoad(_piez_A, viewer);                                    CHKERRQ(ierr);
+    ierr = VecLoad(_piez_n, viewer);                                    CHKERRQ(ierr);
+    ierr = PetscViewerHDF5PopGroup(viewer);                             CHKERRQ(ierr);
+  }
+  PetscViewerDestroy(&viewer);
+
+  fileName = _outputDir + "data_steadyState.h5";
+  ierr = PetscViewerHDF5Open(PETSC_COMM_WORLD, fileName.c_str(), FILE_MODE_READ, &viewer);CHKERRQ(ierr);
+  ierr = PetscViewerHDF5PushTimestepping(viewer);                       CHKERRQ(ierr);
+  ierr = PetscViewerHDF5PushGroup(viewer, "/grainSizeEv");              CHKERRQ(ierr);
+
+  ierr = VecLoad(_d, viewer);                                           CHKERRQ(ierr);
+  ierr = VecLoad(_d_t, viewer);                                         CHKERRQ(ierr);
+  ierr = PetscViewerHDF5PopTimestepping(viewer);                        CHKERRQ(ierr);
+  ierr = PetscViewerHDF5PopGroup(viewer);                               CHKERRQ(ierr);
+
+  PetscViewerDestroy(&viewer);
+
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s at time %g\n",funcName.c_str(),FILENAME,time);
+    CHKERRQ(ierr);
+  #endif
+  return ierr;
+}
+
+
