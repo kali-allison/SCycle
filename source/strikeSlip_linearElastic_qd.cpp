@@ -709,6 +709,7 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::writeCheckpoint()
   ierr = PetscViewerHDF5WriteAttribute(_viewer_chkpt, "time1D", "chkptTimeStep", PETSC_INT, &_chkptTimeStep1D); CHKERRQ(ierr);
   ierr = PetscViewerHDF5WriteAttribute(_viewer_chkpt, "time1D", "stepCount", PETSC_INT, &_stepCount); CHKERRQ(ierr);
   ierr = PetscViewerHDF5WriteAttribute(_viewer_chkpt, "time1D", "currTime", PETSC_SCALAR, &_currTime); CHKERRQ(ierr);
+  ierr = PetscViewerHDF5WriteAttribute(_viewer_chkpt, "time1D", "deltaT", PETSC_SCALAR, &_deltaT); CHKERRQ(ierr);
   ierr = PetscViewerHDF5PopGroup(_viewer_chkpt);                        CHKERRQ(ierr);
 
   ierr = PetscViewerHDF5PushGroup(_viewer_chkpt, "/time2D");          CHKERRQ(ierr);
@@ -717,6 +718,7 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::writeCheckpoint()
   ierr = PetscViewerHDF5WriteAttribute(_viewer_chkpt, "time2D", "chkptTimeStep", PETSC_INT, &_chkptTimeStep2D); CHKERRQ(ierr);
   ierr = PetscViewerHDF5WriteAttribute(_viewer_chkpt, "time2D", "currTime", PETSC_SCALAR, &_currTime); CHKERRQ(ierr);
   ierr = PetscViewerHDF5PopGroup(_viewer_chkpt);                      CHKERRQ(ierr);
+
 
 
   #if VERBOSE > 1

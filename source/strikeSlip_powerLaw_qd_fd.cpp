@@ -941,6 +941,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::writeCheckpoint()
   ierr = VecView(_regime1DVec, _viewer_chkpt);                          CHKERRQ(ierr);
   ierr = PetscViewerHDF5WriteAttribute(_viewer_chkpt, "time1D", "chkptTimeStep", PETSC_INT, &_chkptTimeStep1D); CHKERRQ(ierr);
   ierr = PetscViewerHDF5WriteAttribute(_viewer_chkpt, "time1D", "currTime", PETSC_SCALAR, &_currTime); CHKERRQ(ierr);
+  ierr = PetscViewerHDF5WriteAttribute(_viewer_chkpt, "time1D", "deltaT", PETSC_SCALAR, &_deltaT); CHKERRQ(ierr);
   ierr = PetscViewerHDF5WriteAttribute(_viewer_chkpt, "time1D", "cycleCount", PETSC_INT, &_cycleCount); CHKERRQ(ierr);
   ierr = PetscViewerHDF5WriteAttribute(_viewer_chkpt, "time1D", "phaseCount", PETSC_INT, &_phaseCount); CHKERRQ(ierr);
   ierr = PetscViewerHDF5WriteAttribute(_viewer_chkpt, "time1D", "inDynamic", PETSC_INT, &_inDynamic); CHKERRQ(ierr);
@@ -984,6 +985,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::loadCheckpoint()
   ierr = VecLoad(_dtime1DVec, viewer);                                  CHKERRQ(ierr);
   ierr = VecLoad(_regime1DVec, viewer);                                 CHKERRQ(ierr);
   ierr = PetscViewerHDF5ReadAttribute(viewer, "time1D", "currTime", PETSC_SCALAR, NULL, &_currTime); CHKERRQ(ierr);
+  ierr = PetscViewerHDF5ReadAttribute(viewer, "time1D", "deltaT", PETSC_SCALAR, NULL, &_deltaT); CHKERRQ(ierr);
   ierr = PetscViewerHDF5ReadAttribute(viewer, "time1D", "stepCount", PETSC_INT, NULL, &_stepCount); CHKERRQ(ierr);
   ierr = PetscViewerHDF5ReadAttribute(viewer, "time1D", "cycleCount", PETSC_INT, NULL, &_cycleCount); CHKERRQ(ierr);
   ierr = PetscViewerHDF5ReadAttribute(viewer, "time1D", "phaseCount", PETSC_INT, NULL, &_phaseCount); CHKERRQ(ierr);
