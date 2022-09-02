@@ -548,7 +548,7 @@ PetscErrorCode Domain::loadCheckpoint()
   else {
     _restartFromChkpt = 0;
     _outputFileMode = FILE_MODE_WRITE;
-    PetscPrintf(PETSC_COMM_WORLD,"\n\ndo not restart from checkpoint\n\n");
+    PetscPrintf(PETSC_COMM_WORLD,"Not: not restarting from previous checkpoint.\n\n");
   }
 
   #if VERBOSE > 1
@@ -574,7 +574,7 @@ PetscErrorCode Domain::loadCheckpointSS()
   fileExists = doesFileExist(fileName1) && doesFileExist(fileName2);
   if (fileExists && _restartFromChkptSS == 1) {
     _outputFileMode = FILE_MODE_WRITE;
-    PetscPrintf(PETSC_COMM_WORLD,"Note: will start steady-state simulation from previous checkpoint.\n");
+    PetscPrintf(PETSC_COMM_WORLD,"Note: will start from previous steady-state iteration.\n");
 
     // load saved checkpoint data
     PetscViewer viewer_prev_checkpoint;
@@ -592,7 +592,7 @@ PetscErrorCode Domain::loadCheckpointSS()
   else {
     _restartFromChkptSS = 0;
     _outputFileMode = FILE_MODE_WRITE;
-    PetscPrintf(PETSC_COMM_WORLD,"\n\ndo not restart from checkpoint\n\n");
+    PetscPrintf(PETSC_COMM_WORLD,"Not: not restarting from previous steady-state iteration.\n\n");
   }
 
   #if VERBOSE > 1
