@@ -2042,9 +2042,9 @@ PetscErrorCode HeatEquation::writeContext(const string outputDir, PetscViewer& v
     ierr = VecView(_w, viewer);                                         CHKERRQ(ierr);
     VecScale(_w,1e-3); // convert w from m to km
   }
-  if (_wRadioHeatGen.compare("yes")==0) {
-    ierr = VecView(_w, viewer);                                         CHKERRQ(ierr);
-  }
+  //~ if (_wRadioHeatGen.compare("yes")==0) {
+    //~ ierr = VecView(_w, viewer);                                         CHKERRQ(ierr);
+  //~ }
   ierr = PetscViewerHDF5PopGroup(viewer);                               CHKERRQ(ierr);
 
   //~ ierr = _sbp->writeOps(_outputDir + "ops_he_"); CHKERRQ(ierr);
