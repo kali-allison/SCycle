@@ -269,7 +269,7 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::allocateFields()
   #endif
 
   // initiate Vecs to hold current time and time step
-  ierr = VecCreateMPI(PETSC_COMM_WORLD, 1, 1, &_time1DVec); CHKERRQ(ierr);
+  ierr = VecCreateMPI(PETSC_COMM_WORLD, PETSC_DECIDE, 1, &_time1DVec); CHKERRQ(ierr);
   ierr = VecSetBlockSize(_time1DVec, 1); CHKERRQ(ierr);
   ierr = PetscObjectSetName((PetscObject) _time1DVec, "time1D"); CHKERRQ(ierr);
   ierr = VecSet(_time1DVec,_initTime); CHKERRQ(ierr);
@@ -616,7 +616,7 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::writeSS(const int Ii)
   bool needToDestroyJjSSVec = 0;
   if (_JjSSVec == NULL) {
     // initiate Vec to hold index Jj
-    VecCreateMPI(PETSC_COMM_WORLD, 1, 1, &_JjSSVec);
+    VecCreateMPI(PETSC_COMM_WORLD, PETSC_DECIDE, 1, &_JjSSVec);
     VecSetBlockSize(_JjSSVec, 1);
     PetscObjectSetName((PetscObject) _JjSSVec, "index");
     VecSet(_JjSSVec,Ii);
@@ -1109,7 +1109,7 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::solveSS()
   #endif
 
   // initiate Vecs to hold index Jj
-  VecCreateMPI(PETSC_COMM_WORLD, 1, 1, &_JjSSVec);
+  VecCreateMPI(PETSC_COMM_WORLD, PETSC_DECIDE, 1, &_JjSSVec);
   VecSetBlockSize(_JjSSVec, 1);
   PetscObjectSetName((PetscObject) _JjSSVec, "index");
   VecSet(_JjSSVec,0);

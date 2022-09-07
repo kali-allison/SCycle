@@ -54,6 +54,8 @@ StrikeSlip_LinearElastic_qd_fd::StrikeSlip_LinearElastic_qd_fd(Domain&D)
   _body2fault = &(D._scatters["body2L"]);
   _fault_qd = new Fault_qd(D,D._scatters["body2L"],_faultTypeScale); // fault for quasidynamic problem
   _fault_fd = new Fault_fd(D, D._scatters["body2L"],_faultTypeScale); // fault for fully dynamic problem
+
+
   if (_thermalCoupling != "no") { _he = new HeatEquation(D); }
   if (_thermalCoupling != "no" && _stateLaw == "flashHeating") {
     Vec T; VecDuplicate(_D->_y,&T);
@@ -62,13 +64,10 @@ StrikeSlip_LinearElastic_qd_fd::StrikeSlip_LinearElastic_qd_fd(Domain&D)
     _fault_fd->setThermalFields(T,_he->_k,_he->_c);
   }
 
-  // pressure diffusion equation
-  if (_hydraulicCoupling != "no") {
-    _p = new PressureEq(D);
-  }
+  if (_hydraulicCoupling != "no") { _p = new PressureEq(D); }
   if (_hydraulicCoupling == "coupled") {
     _fault_qd->setSNEff(_p->_p);
-    // _fault_fd->setSNEff(_p->_p);
+    _fault_fd->setSNEff(_p->_p);
   }
 
   // initiate momentum balance equation
@@ -81,7 +80,6 @@ StrikeSlip_LinearElastic_qd_fd::StrikeSlip_LinearElastic_qd_fd(Domain&D)
   if (_forcingType.compare("iceStream")==0) { constructIceStreamForcingTerm(); }
 
   computeTimeStep(); // compute fully dynamic time step size
-
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
@@ -304,6 +302,9 @@ PetscErrorCode StrikeSlip_LinearElastic_qd_fd::checkInput()
   if (_limit_stride_fd == -1){
     _limit_stride_fd = _limit_fd / 10.0;
   }
+  if (_thermalCoupling != "no" && (_timeIntegrator != "RK32_WBE" && _timeIntegrator != "RK43_WBE")) {
+    assert(0);
+  }
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -370,7 +371,7 @@ PetscErrorCode StrikeSlip_LinearElastic_qd_fd::allocateFields()
   #endif
 
   // initiate Vecs to hold current time and time step
-  ierr = VecCreateMPI(PETSC_COMM_WORLD, 1, 1, &_time1DVec); CHKERRQ(ierr);
+  ierr = VecCreateMPI(PETSC_COMM_WORLD, PETSC_DECIDE, 1, &_time1DVec); CHKERRQ(ierr);
   ierr = VecSetBlockSize(_time1DVec, 1); CHKERRQ(ierr);
   ierr = PetscObjectSetName((PetscObject) _time1DVec, "time1D"); CHKERRQ(ierr);
   ierr = VecSet(_time1DVec,_initTime); CHKERRQ(ierr);
@@ -786,18 +787,23 @@ PetscErrorCode StrikeSlip_LinearElastic_qd_fd::initiateIntegrand_qd()
 
   if (!_D->_restartFromChkpt) {
     Vec slip;
-    VecDuplicate(_material->_bcL,&slip);
-    VecCopy(_material->_bcL,slip);
+    ierr = VecDuplicate(_material->_bcL,&slip); CHKERRQ(ierr);
+    ierr = VecCopy(_material->_bcL,slip); CHKERRQ(ierr);
     if (_qd_bcLType.compare("symmFault")==0) {
-      VecScale(slip,_faultTypeScale);
+      ierr = VecScale(slip,_faultTypeScale); CHKERRQ(ierr);
     }
     ierr = loadVecFromInputFile(slip,_inputDir,"slip"); CHKERRQ(ierr);
     _varQSEx["slip"] = slip;
-    VecCopy(_varQSEx["slip"],_fault_qd->_slip);
+    ierr = VecCopy(_varQSEx["slip"],_fault_qd->_slip); CHKERRQ(ierr);
   }
   else {
-    if (_varQSEx.find("slip") != _varQSEx.end() ) { VecCopy(_fault_qd->_slip,_varQSEx["slip"]); }
-    else { Vec var; VecDuplicate(_fault_qd->_slip,&var); VecCopy(_fault_qd->_slip,var); _varQSEx["slip"] = var; }
+    if (_varQSEx.find("slip") != _varQSEx.end() ) { ierr = VecCopy(_fault_qd->_slip,_varQSEx["slip"]); CHKERRQ(ierr); }
+    else {
+      Vec var;
+      ierr = VecDuplicate(_fault_qd->_slip,&var); CHKERRQ(ierr);
+      ierr = VecCopy(_fault_qd->_slip,var); CHKERRQ(ierr);
+      _varQSEx["slip"] = var;
+    }
   }
 
 
@@ -805,17 +811,17 @@ PetscErrorCode StrikeSlip_LinearElastic_qd_fd::initiateIntegrand_qd()
 
   // LinearElastic does not set up its KSP, so must set it up here
   Mat A; _material->_sbp->getA(A);
-  _material->setupKSP(_material->_ksp,_material->_pc,A,_material->_linSolverTrans);
+  ierr = _material->setupKSP(_material->_ksp,_material->_pc,A,_material->_linSolverTrans); CHKERRQ(ierr);
 
   // initiate varQSEx and (if needed varIm)
-  _fault_qd->initiateIntegrand(_initTime,_varQSEx);
+  ierr = _fault_qd->initiateIntegrand(_initTime,_varQSEx); CHKERRQ(ierr);
 
   // initiate integrand for varIm
   if (_thermalCoupling != "no" ) {
-    _he->initiateIntegrand(_initTime,_varQSEx,_varIm);
+    ierr = _he->initiateIntegrand(_initTime,_varQSEx,_varIm); CHKERRQ(ierr);
   }
   if (_hydraulicCoupling!= "no" ) {
-    _p->initiateIntegrand(_initTime,_varQSEx,_varIm);
+    ierr = _p->initiateIntegrand(_initTime,_varQSEx,_varIm); CHKERRQ(ierr);
   }
 
   #if VERBOSE > 1
@@ -833,17 +839,27 @@ PetscErrorCode StrikeSlip_LinearElastic_qd_fd::initiateIntegrand_fd()
   #endif
 
   // add psi and slip to varFD
-  _fault_fd->initiateIntegrand(_initTime,_varFD); // adds psi and slip
+  ierr = _fault_fd->initiateIntegrand(_initTime,_varFD); CHKERRQ(ierr); // adds psi and slip
 
   // add u
-  if (_varFD.find("u") != _varFD.end() ) { VecCopy(_material->_u,_varFD["u"]); }
-  else { Vec var; VecDuplicate(_material->_u,&var); VecCopy(_material->_u,var); _varFD["u"] = var; }
-  VecSet(_u0,0.0);
+  if (_varFD.find("u") != _varFD.end() ) { ierr = VecCopy(_material->_u,_varFD["u"]);CHKERRQ(ierr);  }
+  else {
+    Vec var;
+    ierr = VecDuplicate(_material->_u,&var); CHKERRQ(ierr);
+    ierr = VecCopy(_material->_u,var); CHKERRQ(ierr);
+    _varFD["u"] = var;
+  }
+  ierr = VecSet(_u0,0.0); CHKERRQ(ierr);
 
   // if solving the heat equation, add temperature to varFD
   if (_he != NULL) {
-    if (_varFD.find("u") == _varFD.end() ) { ierr = VecDuplicate(_he->_T, &_varFD["Temp"]); CHKERRQ(ierr); }
-      VecCopy(_he->_T, _varFD["Temp"]);
+    if (_varFD.find("Temp") != _varFD.end() ) { ierr = VecCopy(_he->_T,_varFD["Temp"]);CHKERRQ(ierr);  }
+    else {
+      Vec var;
+      ierr = VecDuplicate(_he->_T,&var); CHKERRQ(ierr);
+      ierr = VecCopy(_he->_T,var); CHKERRQ(ierr);
+      _varFD["Temp"] = var;
+    }
   }
   //~ if (_hydraulicCoupling != "no" ) {
     //~ VecDuplicate(_varIm["pressure"], &_varFD["pressure"]);
@@ -1183,7 +1199,7 @@ PetscErrorCode StrikeSlip_LinearElastic_qd_fd::writeSS(const int Ii)
   bool needToDestroyJjSSVec = 0;
   if (_JjSSVec == NULL) {
     // initiate Vec to hold index Jj
-    VecCreateMPI(PETSC_COMM_WORLD, 1, 1, &_JjSSVec);
+    VecCreateMPI(PETSC_COMM_WORLD, PETSC_DECIDE, 1, &_JjSSVec);
     VecSetBlockSize(_JjSSVec, 1);
     PetscObjectSetName((PetscObject) _JjSSVec, "index");
     VecSet(_JjSSVec,Ii);
@@ -1208,12 +1224,10 @@ PetscErrorCode StrikeSlip_LinearElastic_qd_fd::writeSS(const int Ii)
 
     ierr = _material->writeStep1D(_viewerSS);                           CHKERRQ(ierr);
     ierr = _fault_qd->writeStep(_viewerSS);                                CHKERRQ(ierr);
-    if (_thermalCoupling.compare("no")!=0) { ierr = _he->writeStep1D(_viewerSS); CHKERRQ(ierr); }
+    if (_thermalCoupling!="no") { ierr = _he->writeStep1D(_viewerSS); CHKERRQ(ierr); }
 
     ierr = _material->writeStep2D(_viewerSS);                           CHKERRQ(ierr);
-    if (_thermalCoupling.compare("no")!=0) { ierr =  _he->writeStep2D(_viewerSS); CHKERRQ(ierr); }
-
-
+    if (_thermalCoupling!="no") { ierr =  _he->writeStep2D(_viewerSS); CHKERRQ(ierr); }
   }
   else {
     ierr = PetscViewerHDF5PushGroup(_viewerSS, "/steadyState");         CHKERRQ(ierr);
@@ -1227,10 +1241,10 @@ PetscErrorCode StrikeSlip_LinearElastic_qd_fd::writeSS(const int Ii)
     ierr = _material->writeStep1D(_viewerSS);                           CHKERRQ(ierr);
     ierr = _fault_qd->writeStep(_viewerSS);                             CHKERRQ(ierr);
     if (_hydraulicCoupling.compare("no")!=0) { _p->writeStep(_viewerSS); }
-    if (_thermalCoupling.compare("no")!=0) { ierr =  _he->writeStep1D(_viewerSS); CHKERRQ(ierr); }
+    if (_thermalCoupling!="no") { ierr =  _he->writeStep1D(_viewerSS); CHKERRQ(ierr); }
 
     ierr = _material->writeStep2D(_viewerSS);                           CHKERRQ(ierr);
-    if (_thermalCoupling.compare("no")!=0) { ierr =  _he->writeStep2D(_viewerSS); CHKERRQ(ierr); }
+    if (_thermalCoupling!="no") { ierr =  _he->writeStep2D(_viewerSS); CHKERRQ(ierr); }
   }
 
   if (needToDestroyJjSSVec == 1) {VecDestroy(&_JjSSVec);}
@@ -1585,7 +1599,7 @@ PetscErrorCode StrikeSlip_LinearElastic_qd_fd::solveSS()
   #endif
 
   // initiate Vecs to hold index Jj
-  VecCreateMPI(PETSC_COMM_WORLD, 1, 1, &_JjSSVec);
+  VecCreateMPI(PETSC_COMM_WORLD, PETSC_DECIDE, 1, &_JjSSVec);
   VecSetBlockSize(_JjSSVec, 1);
   PetscObjectSetName((PetscObject) _JjSSVec, "index");
   VecSet(_JjSSVec,0);
@@ -1961,14 +1975,14 @@ PetscErrorCode StrikeSlip_LinearElastic_qd_fd::d_dt(const PetscScalar time,const
     ierr = VecAXPY(_material->_bcR,1.0,_material->_bcRShift);CHKERRQ(ierr);
   }
 
-  _fault_qd->updateFields(time,varEx);
+  ierr = _fault_qd->updateFields(time,varEx); CHKERRQ(ierr);
 
   if ((varEx.find("pressure") != varEx.end() || varEx.find("permeability") != varEx.end()) && _hydraulicCoupling.compare("no")!=0 ){
-    _p->updateFields(time,varEx);
+    ierr = _p->updateFields(time,varEx); CHKERRQ(ierr);
   }
   if (_hydraulicCoupling.compare("coupled")==0) {
     // _fault_qd->setSNEff(varEx.find("pressure")->second);
-    _fault_qd->setSNEff(_p->_p);
+    ierr = _fault_qd->setSNEff(_p->_p); CHKERRQ(ierr);
   }
 
   // compute rates
@@ -2015,20 +2029,21 @@ PetscErrorCode StrikeSlip_LinearElastic_qd_fd::d_dt(const PetscScalar time,const
     ierr = VecAXPY(_material->_bcR,1.0,_material->_bcRShift);CHKERRQ(ierr);
   }
 
-  _fault_qd->updateFields(time,varEx);
+  ierr = _fault_qd->updateFields(time,varEx); CHKERRQ(ierr);
 
   if ( _hydraulicCoupling.compare("no")!=0 ) {
-    _p->updateFields(time,varEx,varImo);
+    ierr = _p->updateFields(time,varEx,varImo); CHKERRQ(ierr);
   }
 
   // update temperature in momBal
   if (varImo.find("Temp") != varImo.end() && _thermalCoupling.compare("coupled")==0) {
-    _fault_qd->updateTemperature(varImo.find("Temp")->second);
+    assert(0);
+    ierr = _fault_qd->updateTemperature(varImo.find("Temp")->second); CHKERRQ(ierr);
   }
 
   // update effective normal stress in fault using pore pressure
   if (_hydraulicCoupling.compare("coupled")==0) {
-    _fault_qd->setSNEff(_p->_p);
+    ierr = _fault_qd->setSNEff(_p->_p); CHKERRQ(ierr);
   }
 
 

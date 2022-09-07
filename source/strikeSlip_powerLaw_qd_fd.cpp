@@ -321,6 +321,9 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::checkInput()
   if (_grainSizeEvCoupling=="coupled" || _grainSizeEvCoupling=="uncoupled") {
     assert(_evolveGrainSize == 1 || _computeSSGrainSize == 1);
   }
+  if (_thermalCoupling != "no" && (_timeIntegrator != "RK32_WBE" && _timeIntegrator != "RK43_WBE")) {
+    assert(0);
+  }
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -386,7 +389,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::allocateFields()
   #endif
 
   // initiate Vecs to hold current time and time step
-  ierr = VecCreateMPI(PETSC_COMM_WORLD, 1, 1, &_time1DVec); CHKERRQ(ierr);
+  ierr = VecCreateMPI(PETSC_COMM_WORLD, PETSC_DECIDE, 1, &_time1DVec); CHKERRQ(ierr);
   ierr = VecSetBlockSize(_time1DVec, 1); CHKERRQ(ierr);
   ierr = PetscObjectSetName((PetscObject) _time1DVec, "time1D"); CHKERRQ(ierr);
   ierr = VecSet(_time1DVec,_initTime); CHKERRQ(ierr);
@@ -421,7 +424,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::allocateFields()
 
 
   // initiate Vecs to hold index Jj
-  VecCreateMPI(PETSC_COMM_WORLD, 1, 1, &_JjSSVec);
+  VecCreateMPI(PETSC_COMM_WORLD, PETSC_DECIDE, 1, &_JjSSVec);
   VecSetBlockSize(_JjSSVec, 1);
   PetscObjectSetName((PetscObject) _JjSSVec, "SS_index");
   VecSet(_JjSSVec,_SS_index);
@@ -690,8 +693,13 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::initiateIntegrand_fd()
 
   // if solving the heat equation, add temperature to varFD
   if (_evolveTemperature == 1) {
-    if (_varFD.find("u") == _varFD.end() ) { ierr = VecDuplicate(_he->_T, &_varFD["Temp"]); CHKERRQ(ierr); }
-    ierr = VecCopy(_he->_T, _varFD["Temp"]); CHKERRQ(ierr);
+    if (_varFD.find("Temp") != _varFD.end() ) { ierr = VecCopy(_he->_T,_varFD["Temp"]);CHKERRQ(ierr);  }
+    else {
+      Vec var;
+      ierr = VecDuplicate(_he->_T,&var); CHKERRQ(ierr);
+      ierr = VecCopy(_he->_T,var); CHKERRQ(ierr);
+      _varFD["Temp"] = var;
+    }
   }
 
   // if solving the grain size evolution equation, add to varFD
@@ -702,10 +710,10 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::initiateIntegrand_fd()
   for (map<string,Vec>::iterator it = _varFD.begin(); it != _varFD.end(); it++ ) {
     if (_varFDPrev.find(it->first) == _varFDPrev.end() ) {
       Vec var;
-      VecDuplicate(_varFD[it->first],&var);
+      ierr = VecDuplicate(_varFD[it->first],&var); CHKERRQ(ierr);
       _varFDPrev[it->first] = var;
     }
-    VecCopy(_varFD[it->first],_varFDPrev[it->first]);
+    ierr = VecCopy(_varFD[it->first],_varFDPrev[it->first]); CHKERRQ(ierr);
   }
 
   #if VERBOSE > 1
@@ -2493,7 +2501,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::writeSS(const int Ii)
   bool needToDestroyJjSSVec = 0;
   if (_JjSSVec == NULL) {
     // initiate Vec to hold index Jj
-    VecCreateMPI(PETSC_COMM_WORLD, 1, 1, &_JjSSVec);
+    VecCreateMPI(PETSC_COMM_WORLD, PETSC_DECIDE, 1, &_JjSSVec);
     VecSetBlockSize(_JjSSVec, 1);
     PetscObjectSetName((PetscObject) _JjSSVec, "index");
     VecSet(_JjSSVec,Ii);

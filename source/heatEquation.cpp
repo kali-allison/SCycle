@@ -291,7 +291,7 @@ PetscErrorCode ierr = 0;
   VecDuplicate(_k,&_dT);       VecSet(_dT,0.);       PetscObjectSetName((PetscObject) _dT, "dT");
 
   // initiate Vec to hold max temperature for output
-  VecCreateMPI(PETSC_COMM_WORLD, 1, 1, &_maxdTVec);
+  VecCreateMPI(PETSC_COMM_WORLD, PETSC_DECIDE, 1, &_maxdTVec);
   VecSetBlockSize(_maxdTVec, 1);
   PetscObjectSetName((PetscObject) _maxdTVec, "maxdT"); VecSet(_maxdTVec,0.);
 
