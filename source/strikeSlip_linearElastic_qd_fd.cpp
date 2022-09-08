@@ -11,6 +11,7 @@ StrikeSlip_LinearElastic_qd_fd::StrikeSlip_LinearElastic_qd_fd(Domain&D)
     _thermalCoupling("no"),_heatEquationType("transient"),
     _hydraulicCoupling("no"),_hydraulicTimeIntType("explicit"),
     _guessSteadyStateICs(0),_forcingType("no"),_faultTypeScale(2.0),
+    _evolveTemperature(0),_computeSSTemperature(0),
     _cycleCount(0),_maxNumCycles(1e3),_phaseCount(0),
     _deltaT(-1), _CFL(-1),_y(&D._y),_z(&D._z),
     _inDynamic(false),_allowed(false),
@@ -54,7 +55,6 @@ StrikeSlip_LinearElastic_qd_fd::StrikeSlip_LinearElastic_qd_fd(Domain&D)
   _body2fault = &(D._scatters["body2L"]);
   _fault_qd = new Fault_qd(D,D._scatters["body2L"],_faultTypeScale); // fault for quasidynamic problem
   _fault_fd = new Fault_fd(D, D._scatters["body2L"],_faultTypeScale); // fault for fully dynamic problem
-
 
   if (_thermalCoupling != "no") { _he = new HeatEquation(D); }
   if (_thermalCoupling != "no" && _stateLaw == "flashHeating") {
@@ -172,6 +172,8 @@ PetscErrorCode StrikeSlip_LinearElastic_qd_fd::loadSettings(const char *file)
     else if (var.compare("stateLaw")==0) { _stateLaw = rhs.c_str(); }
     else if (var.compare("guessSteadyStateICs")==0) { _guessSteadyStateICs = atoi(rhs.c_str() ); }
     else if (var.compare("forcingType")==0) { _forcingType = rhs.c_str(); }
+    else if (var.compare("evolveTemperature")==0) { _evolveTemperature = (int) atoi( rhs.c_str() ); }
+    else if (var.compare("computeSSHeatEq")==0) { _computeSSTemperature = (int) atoi( rhs.c_str() ); }
 
     // time integration properties
     else if (var.compare("timeIntegrator")==0) { _timeIntegrator = rhs; }
@@ -852,7 +854,7 @@ PetscErrorCode StrikeSlip_LinearElastic_qd_fd::initiateIntegrand_fd()
   ierr = VecSet(_u0,0.0); CHKERRQ(ierr);
 
   // if solving the heat equation, add temperature to varFD
-  if (_he != NULL) {
+  if (_evolveTemperature == 1) {
     if (_varFD.find("Temp") != _varFD.end() ) { ierr = VecCopy(_he->_T,_varFD["Temp"]);CHKERRQ(ierr);  }
     else {
       Vec var;
@@ -912,7 +914,8 @@ PetscErrorCode StrikeSlip_LinearElastic_qd_fd::prepare_fd2qd()
   ierr = VecCopy(_fault_fd->_slip, _varQSEx["slip"]); CHKERRQ(ierr);
 
   // update implicitly integrated T
-  if (_thermalCoupling != "no" ) { ierr = VecCopy(_varFD["Temp"],_varIm["Temp"]); CHKERRQ(ierr); } // if solving the heat equation
+  if (_evolveTemperature == 1) { ierr = VecCopy(_varFD["Temp"],_varIm["Temp"]); CHKERRQ(ierr); } // if solving the heat equation
+
   if (_hydraulicCoupling != "no" ) {
     VecCopy(_varFD["pressure"], _varIm["pressure"]);
     if ((_p->_permSlipDependent).compare("yes")==0) {
@@ -1632,11 +1635,9 @@ PetscErrorCode StrikeSlip_LinearElastic_qd_fd::solveSS()
   _material->changeBCTypes(_mat_qd_bcRType,_mat_qd_bcTType,_mat_qd_bcLType,_mat_qd_bcBType);
 
   // steady state temperature
-  if (_thermalCoupling.compare("no")!=0) {
-    ierr = writeVec(_he->_Tamb,_outputDir + "SS_T0"); CHKERRQ(ierr);
+  if (_computeSSTemperature) {
     Vec T; VecDuplicate(_material->_sxy,&T);
     _he->computeSteadyStateTemp(_currTime,_fault_qd->_slipVel,_fault_qd->_tauP,NULL,NULL,T);
-    ierr = writeVec(T,_outputDir + "SS_TSS"); CHKERRQ(ierr);
     VecDestroy(&T);
   }
 
@@ -2148,7 +2149,7 @@ PetscErrorCode StrikeSlip_LinearElastic_qd_fd::d_dt(const PetscScalar time, cons
   }
 
   // explicitly integrate heat equation using forward Euler
-  if (_thermalCoupling.compare("no")!=0) {
+  if (_evolveTemperature == 1) {
     Vec V = _fault_fd->_slipVel;
     Vec tau = _fault_fd->_tauP;
     Vec Tn = var.find("Temp")->second;
@@ -2246,14 +2247,14 @@ double startTime = MPI_Wtime();
     ierr = _material->writeStep1D(_viewer1D); CHKERRQ(ierr);
     if(_inDynamic){ ierr = _fault_fd->writeStep(_viewer1D); CHKERRQ(ierr); }
     else { ierr = _fault_qd->writeStep(_viewer1D); CHKERRQ(ierr); }
+    if (_evolveTemperature == 1) { ierr =  _he->writeStep1D(_viewer1D); CHKERRQ(ierr); }
     if (_hydraulicCoupling.compare("no")!=0) { ierr = _p->writeStep(_viewer1D); CHKERRQ(ierr); }
-    if (_thermalCoupling.compare("no")!=0) { ierr =  _he->writeStep1D(_viewer1D); CHKERRQ(ierr); }
   }
 
   if ( (_stride2D>0 &&_currTime == _maxTime) || (_stride2D>0 && stepCount % _stride2D == 0) ) {
     ierr = writeStep2D(_stepCount,time); CHKERRQ(ierr);
     ierr = _material->writeStep2D(_viewer2D);CHKERRQ(ierr);
-    if (_thermalCoupling.compare("no")!=0) { ierr =  _he->writeStep2D(_viewer2D);CHKERRQ(ierr); }
+    if (_evolveTemperature == 1) { ierr =  _he->writeStep2D(_viewer2D);CHKERRQ(ierr); }
   }
 
   // checkpointing
