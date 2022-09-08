@@ -492,13 +492,22 @@ PetscErrorCode RK32_WBE::writeCheckpoint(PetscViewer &viewer)
   // needed errA[0], errA[1], _stepCount
   // not needed, but just in case: _deltaT, _totErr
 
-  ierr = PetscViewerHDF5PushGroup(viewer, "/time1D");                                                  CHKERRQ(ierr);
-  ierr = PetscViewerHDF5WriteAttribute(viewer, "time1D", "stepCount", PETSC_INT, &_stepCount); CHKERRQ(ierr);
-  ierr = PetscViewerHDF5WriteAttribute(viewer, "time1D", "errA0", PETSC_SCALAR, &_errA[0]);    CHKERRQ(ierr);
-  ierr = PetscViewerHDF5WriteAttribute(viewer, "time1D", "errA1", PETSC_SCALAR, &_errA[1]);    CHKERRQ(ierr);
-  ierr = PetscViewerHDF5WriteAttribute(viewer, "time1D", "deltaT", PETSC_SCALAR, &_newDeltaT); CHKERRQ(ierr);
-  ierr = PetscViewerHDF5WriteAttribute(viewer, "time1D", "totErr", PETSC_SCALAR, &_totErr);    CHKERRQ(ierr);
-  ierr = PetscViewerHDF5PopGroup(viewer);                                                              CHKERRQ(ierr);
+  // initiate Vec to serve as underlying data set for step count and deltaT to be written out as attributes
+  Vec temp;
+  VecCreateMPI(PETSC_COMM_WORLD, PETSC_DECIDE, 1, &temp);
+  VecSetBlockSize(temp, 1);
+  PetscObjectSetName((PetscObject) temp, "odeSolver_chkpt_data");
+  VecSet(temp,0.);
+
+  ierr = PetscViewerHDF5PushGroup(viewer, "/odeSolver");        CHKERRQ(ierr);
+  ierr = VecView(temp, viewer);                                         CHKERRQ(ierr);
+  ierr = PetscViewerHDF5WriteAttribute(viewer, "odeSolver_chkpt_data", "stepCount", PETSC_INT, &_stepCount); CHKERRQ(ierr);
+  ierr = PetscViewerHDF5WriteAttribute(viewer, "odeSolver_chkpt_data", "errA0", PETSC_SCALAR, &_errA[0]);    CHKERRQ(ierr);
+  ierr = PetscViewerHDF5WriteAttribute(viewer, "odeSolver_chkpt_data", "errA1", PETSC_SCALAR, &_errA[1]);    CHKERRQ(ierr);
+  ierr = PetscViewerHDF5WriteAttribute(viewer, "odeSolver_chkpt_data", "deltaT", PETSC_SCALAR, &_newDeltaT); CHKERRQ(ierr);
+  ierr = PetscViewerHDF5WriteAttribute(viewer, "odeSolver_chkpt_data", "totErr", PETSC_SCALAR, &_totErr);    CHKERRQ(ierr);
+  ierr = PetscViewerHDF5PopGroup(viewer); CHKERRQ(ierr);
+  VecDestroy(&temp);
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending RK32_WBE::writeCheckpoint in odeSolver.cpp.\n");
@@ -1117,13 +1126,22 @@ PetscErrorCode RK43_WBE::writeCheckpoint(PetscViewer &viewer)
   // needed errA[0], errA[1], _stepCount
   // not needed, but just in case: _deltaT, _totErr
 
-  ierr = PetscViewerHDF5PushGroup(viewer, "/time1D");                                                  CHKERRQ(ierr);
-  ierr = PetscViewerHDF5WriteAttribute(viewer, "time1D", "stepCount", PETSC_INT, &_stepCount); CHKERRQ(ierr);
-  ierr = PetscViewerHDF5WriteAttribute(viewer, "time1D", "errA0", PETSC_SCALAR, &_errA[0]);    CHKERRQ(ierr);
-  ierr = PetscViewerHDF5WriteAttribute(viewer, "time1D", "errA1", PETSC_SCALAR, &_errA[1]);    CHKERRQ(ierr);
-  ierr = PetscViewerHDF5WriteAttribute(viewer, "time1D", "deltaT", PETSC_SCALAR, &_newDeltaT); CHKERRQ(ierr);
-  ierr = PetscViewerHDF5WriteAttribute(viewer, "time1D", "totErr", PETSC_SCALAR, &_totErr);    CHKERRQ(ierr);
-  ierr = PetscViewerHDF5PopGroup(viewer);                                                              CHKERRQ(ierr);
+  // initiate Vec to serve as underlying data set for step count and deltaT to be written out as attributes
+  Vec temp;
+  VecCreateMPI(PETSC_COMM_WORLD, PETSC_DECIDE, 1, &temp);
+  VecSetBlockSize(temp, 1);
+  PetscObjectSetName((PetscObject) temp, "odeSolver_chkpt_data");
+  VecSet(temp,0.);
+
+  ierr = PetscViewerHDF5PushGroup(viewer, "/odeSolver");        CHKERRQ(ierr);
+  ierr = VecView(temp, viewer);                                         CHKERRQ(ierr);
+  ierr = PetscViewerHDF5WriteAttribute(viewer, "odeSolver_chkpt_data", "stepCount", PETSC_INT, &_stepCount); CHKERRQ(ierr);
+  ierr = PetscViewerHDF5WriteAttribute(viewer, "odeSolver_chkpt_data", "errA0", PETSC_SCALAR, &_errA[0]);    CHKERRQ(ierr);
+  ierr = PetscViewerHDF5WriteAttribute(viewer, "odeSolver_chkpt_data", "errA1", PETSC_SCALAR, &_errA[1]);    CHKERRQ(ierr);
+  ierr = PetscViewerHDF5WriteAttribute(viewer, "odeSolver_chkpt_data", "deltaT", PETSC_SCALAR, &_newDeltaT); CHKERRQ(ierr);
+  ierr = PetscViewerHDF5WriteAttribute(viewer, "odeSolver_chkpt_data", "totErr", PETSC_SCALAR, &_totErr);    CHKERRQ(ierr);
+  ierr = PetscViewerHDF5PopGroup(viewer); CHKERRQ(ierr);
+  VecDestroy(&temp);
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending RK43_WBE::writeCheckpoint in odeSolver.cpp.\n");

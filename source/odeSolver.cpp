@@ -745,7 +745,7 @@ PetscErrorCode RK32::writeCheckpoint(PetscViewer &viewer)
 
   // initiate Vec to serve as underlying data set for step count and deltaT to be written out as attributes
   Vec temp;
-  VecCreateMPI(PETSC_COMM_WORLD, 1, 1, &temp);
+  VecCreateMPI(PETSC_COMM_WORLD, PETSC_DECIDE, 1, &temp);
   VecSetBlockSize(temp, 1);
   PetscObjectSetName((PetscObject) temp, "odeSolver_chkpt_data");
   VecSet(temp,0.);
@@ -1366,14 +1366,14 @@ PetscErrorCode RK43::writeCheckpoint(PetscViewer &viewer)
 
   // initiate Vec to serve as underlying data set for step count and deltaT to be written out as attributes
   Vec temp;
-  VecCreateMPI(PETSC_COMM_WORLD, 1, 1, &temp);
+  VecCreateMPI(PETSC_COMM_WORLD, PETSC_DECIDE, 1, &temp);
   VecSetBlockSize(temp, 1);
   PetscObjectSetName((PetscObject) temp, "odeSolver_chkpt_data");
   VecSet(temp,0.);
 
   ierr = PetscViewerHDF5PushGroup(viewer, "/odeSolver");        CHKERRQ(ierr);
   ierr = VecView(temp, viewer);                                         CHKERRQ(ierr);
-    ierr = PetscViewerHDF5WriteAttribute(viewer, "odeSolver_chkpt_data", "stepCount", PETSC_INT, &_stepCount); CHKERRQ(ierr);
+  ierr = PetscViewerHDF5WriteAttribute(viewer, "odeSolver_chkpt_data", "stepCount", PETSC_INT, &_stepCount); CHKERRQ(ierr);
   ierr = PetscViewerHDF5WriteAttribute(viewer, "odeSolver_chkpt_data", "errA0", PETSC_SCALAR, &_errA[0]);    CHKERRQ(ierr);
   ierr = PetscViewerHDF5WriteAttribute(viewer, "odeSolver_chkpt_data", "errA1", PETSC_SCALAR, &_errA[1]);    CHKERRQ(ierr);
   ierr = PetscViewerHDF5WriteAttribute(viewer, "odeSolver_chkpt_data", "deltaT", PETSC_SCALAR, &_newDeltaT); CHKERRQ(ierr);

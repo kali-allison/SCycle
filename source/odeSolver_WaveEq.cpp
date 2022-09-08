@@ -237,7 +237,7 @@ PetscErrorCode OdeSolver_WaveEq::writeCheckpoint(PetscViewer &viewer)
 
   // initiate Vec to serve as underlying data set for step count and deltaT to be written out as attributes
   Vec temp;
-  VecCreateMPI(PETSC_COMM_WORLD, 1, 1, &temp);
+  VecCreateMPI(PETSC_COMM_WORLD, PETSC_DECIDE, 1, &temp);
   VecSetBlockSize(temp, 1);
   PetscObjectSetName((PetscObject) temp, "odeSolver_WaveEq_chkpt_data");
   VecSet(temp,0.);
