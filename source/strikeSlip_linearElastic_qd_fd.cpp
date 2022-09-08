@@ -167,7 +167,7 @@ PetscErrorCode StrikeSlip_LinearElastic_qd_fd::loadSettings(const char *file)
     pos = rhs.find(" ");
     rhs = rhs.substr(0,pos);
 
-    if (var.compare("thermalCoupling")==0) { _thermalCoupling = rhs.c_str(); }
+    if (var.compare("thermalCoupling")==0) { _thermalCoupling = rhs.c_str();assert(0); }
     else if (var.compare("hydraulicCoupling")==0) { _hydraulicCoupling = rhs.c_str(); }
     else if (var.compare("stateLaw")==0) { _stateLaw = rhs.c_str(); }
     else if (var.compare("guessSteadyStateICs")==0) { _guessSteadyStateICs = atoi(rhs.c_str() ); }
@@ -1230,7 +1230,7 @@ PetscErrorCode StrikeSlip_LinearElastic_qd_fd::writeSS(const int Ii)
 
     ierr = _material->writeStep1D(_viewerSS);                           CHKERRQ(ierr);
     ierr = _fault_qd->writeStep(_viewerSS);                                CHKERRQ(ierr);
-    if (_thermalCoupling!="no") { ierr = _he->writeStep1D(_viewerSS); CHKERRQ(ierr); }
+    if (_evolveTemperature == 1) { ierr = _he->writeStep1D(_viewerSS); CHKERRQ(ierr); }
 
     ierr = _material->writeStep2D(_viewerSS);                           CHKERRQ(ierr);
     if (_thermalCoupling!="no") { ierr =  _he->writeStep2D(_viewerSS); CHKERRQ(ierr); }
@@ -1247,10 +1247,10 @@ PetscErrorCode StrikeSlip_LinearElastic_qd_fd::writeSS(const int Ii)
     ierr = _material->writeStep1D(_viewerSS);                           CHKERRQ(ierr);
     ierr = _fault_qd->writeStep(_viewerSS);                             CHKERRQ(ierr);
     if (_hydraulicCoupling.compare("no")!=0) { _p->writeStep(_viewerSS); }
-    if (_thermalCoupling!="no") { ierr =  _he->writeStep1D(_viewerSS); CHKERRQ(ierr); }
+    if (_evolveTemperature == 1) { ierr =  _he->writeStep1D(_viewerSS); CHKERRQ(ierr); }
 
     ierr = _material->writeStep2D(_viewerSS);                           CHKERRQ(ierr);
-    if (_thermalCoupling!="no") { ierr =  _he->writeStep2D(_viewerSS); CHKERRQ(ierr); }
+    if (_evolveTemperature == 1) { ierr =  _he->writeStep2D(_viewerSS); CHKERRQ(ierr); }
   }
 
   if (needToDestroyJjSSVec == 1) {VecDestroy(&_JjSSVec);}
