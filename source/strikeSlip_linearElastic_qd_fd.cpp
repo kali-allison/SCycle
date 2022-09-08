@@ -56,7 +56,7 @@ StrikeSlip_LinearElastic_qd_fd::StrikeSlip_LinearElastic_qd_fd(Domain&D)
   _fault_qd = new Fault_qd(D,D._scatters["body2L"],_faultTypeScale); // fault for quasidynamic problem
   _fault_fd = new Fault_fd(D, D._scatters["body2L"],_faultTypeScale); // fault for fully dynamic problem
 
-  if (_thermalCoupling != "no") { _he = new HeatEquation(D); }
+  if (_evolveTemperature == 1 || _computeSSTemperature == 1) { _he = new HeatEquation(D); }
   if (_thermalCoupling != "no" && _stateLaw == "flashHeating") {
     Vec T; VecDuplicate(_D->_y,&T);
     _he->getTemp(T);
@@ -305,6 +305,7 @@ PetscErrorCode StrikeSlip_LinearElastic_qd_fd::checkInput()
     _limit_stride_fd = _limit_fd / 10.0;
   }
   if (_thermalCoupling != "no" && (_timeIntegrator != "RK32_WBE" && _timeIntegrator != "RK43_WBE")) {
+    PetscPrintf(PETSC_COMM_WORLD,"thermal coupling = %s\n",_thermalCoupling.c_str());
     assert(0);
   }
 
@@ -862,6 +863,7 @@ PetscErrorCode StrikeSlip_LinearElastic_qd_fd::initiateIntegrand_fd()
       ierr = VecCopy(_he->_T,var); CHKERRQ(ierr);
       _varFD["Temp"] = var;
     }
+    assert(0);
   }
   //~ if (_hydraulicCoupling != "no" ) {
     //~ VecDuplicate(_varIm["pressure"], &_varFD["pressure"]);
