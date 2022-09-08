@@ -167,7 +167,11 @@ PetscErrorCode StrikeSlip_LinearElastic_qd_fd::loadSettings(const char *file)
     pos = rhs.find(" ");
     rhs = rhs.substr(0,pos);
 
-    if (var.compare("thermalCoupling")==0) { _thermalCoupling = rhs.c_str();assert(0); }
+    if (var.compare("thermalCoupling")==0) {
+      _thermalCoupling = rhs.c_str();
+      PetscPrintf(PETSC_COMM_WORLD,"thermalCoupling = %s\n",_thermalCoupling.c_str());
+      assert(0);
+      }
     else if (var.compare("hydraulicCoupling")==0) { _hydraulicCoupling = rhs.c_str(); }
     else if (var.compare("stateLaw")==0) { _stateLaw = rhs.c_str(); }
     else if (var.compare("guessSteadyStateICs")==0) { _guessSteadyStateICs = atoi(rhs.c_str() ); }
