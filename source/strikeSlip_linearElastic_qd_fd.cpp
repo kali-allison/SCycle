@@ -290,7 +290,7 @@ PetscErrorCode StrikeSlip_LinearElastic_qd_fd::checkInput()
   assert(_fd_bcBType.compare("freeSurface")==0 || _fd_bcBType.compare("outGoingCharacteristics")==0 );
 
   if (_stateLaw.compare("flashHeating")==0) {
-    assert(_thermalCoupling.compare("no")!=0);
+    assert(_thermalCoupling != "no");
   }
 
   if (_limit_fd < _trigger_qd2fd){
@@ -304,10 +304,9 @@ PetscErrorCode StrikeSlip_LinearElastic_qd_fd::checkInput()
   if (_limit_stride_fd == -1){
     _limit_stride_fd = _limit_fd / 10.0;
   }
-  //~ if (_thermalCoupling != "no" && (_timeIntegrator != "RK32_WBE" && _timeIntegrator != "RK43_WBE")) {
-    //~ PetscPrintf(PETSC_COMM_WORLD,"thermal coupling = %s\n",_thermalCoupling.c_str());
-    //~ assert(0);
-  //~ }
+  if (_thermalCoupling != "no" && (_timeIntegrator != "RK32_WBE" && _timeIntegrator != "RK43_WBE")) {
+    assert(0);
+  }
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -863,7 +862,6 @@ PetscErrorCode StrikeSlip_LinearElastic_qd_fd::initiateIntegrand_fd()
       ierr = VecCopy(_he->_T,var); CHKERRQ(ierr);
       _varFD["Temp"] = var;
     }
-    assert(0);
   }
   //~ if (_hydraulicCoupling != "no" ) {
     //~ VecDuplicate(_varIm["pressure"], &_varFD["pressure"]);
