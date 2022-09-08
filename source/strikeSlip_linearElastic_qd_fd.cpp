@@ -675,7 +675,7 @@ PetscErrorCode StrikeSlip_LinearElastic_qd_fd::integrate()
       double startTime_qd = MPI_Wtime();
       _allowed = false;
       _inDynamic = false;
-      prepare_fd2qd();
+      prepare_fd2qd(); PetscPrintf(PETSC_COMM_WORLD,"in integrate line 678\n");
       integrate_qd(0);
       _qdTime += MPI_Wtime() - startTime_qd;
     }
@@ -683,7 +683,7 @@ PetscErrorCode StrikeSlip_LinearElastic_qd_fd::integrate()
       double startTime_fd = MPI_Wtime();
       _allowed = false;
       _inDynamic = true;
-      prepare_qd2fd();
+      prepare_qd2fd(); PetscPrintf(PETSC_COMM_WORLD,"in integrate line 686\n");
       integrate_fd(0);
       _dynTime += MPI_Wtime() - startTime_fd;
     }
@@ -819,7 +819,7 @@ PetscErrorCode StrikeSlip_LinearElastic_qd_fd::initiateIntegrand_qd()
   ierr = _fault_qd->initiateIntegrand(_initTime,_varQSEx); CHKERRQ(ierr);
 
   // initiate integrand for varIm
-  if (_thermalCoupling != "no" ) {
+  if (_evolveTemperature == 1) {
     ierr = _he->initiateIntegrand(_initTime,_varQSEx,_varIm); CHKERRQ(ierr);
   }
   if (_hydraulicCoupling!= "no" ) {
@@ -897,7 +897,7 @@ PetscErrorCode StrikeSlip_LinearElastic_qd_fd::prepare_fd2qd()
     std::string funcName = "StrikeSlip_LinearElastic_qd_fd::prepare_fd2qd()";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
-
+PetscPrintf(PETSC_COMM_WORLD,"in prepare_fd2qd line 900\n");
   //~ // Force writing output
   //~ PetscInt stopIntegration = 0;
   //~ if(_stride1D > 0){ _stride1D = 1; }
@@ -912,10 +912,10 @@ PetscErrorCode StrikeSlip_LinearElastic_qd_fd::prepare_fd2qd()
   // update explicitly integrated variables
   ierr = VecCopy(_fault_fd->_psi, _varQSEx["psi"]); CHKERRQ(ierr);
   ierr = VecCopy(_fault_fd->_slip, _varQSEx["slip"]); CHKERRQ(ierr);
-
+PetscPrintf(PETSC_COMM_WORLD,"in prepare_fd2qd line 915\n");
   // update implicitly integrated T
   if (_evolveTemperature == 1) { ierr = VecCopy(_varFD["Temp"],_varIm["Temp"]); CHKERRQ(ierr); } // if solving the heat equation
-
+PetscPrintf(PETSC_COMM_WORLD,"in prepare_fd2qd line 918\n");
   if (_hydraulicCoupling != "no" ) {
     VecCopy(_varFD["pressure"], _varIm["pressure"]);
     if ((_p->_permSlipDependent).compare("yes")==0) {
@@ -926,7 +926,7 @@ PetscErrorCode StrikeSlip_LinearElastic_qd_fd::prepare_fd2qd()
       _fault_qd->setSNEff(_p->_p);
     }
   }
-
+PetscPrintf(PETSC_COMM_WORLD,"in prepare_fd2qd line 929\n");
   // update fault internal variables
   ierr = VecCopy(_fault_fd->_psi,       _fault_qd->_psi); CHKERRQ(ierr);
   ierr = VecCopy(_fault_fd->_slipVel,   _fault_qd->_slipVel); CHKERRQ(ierr);
@@ -940,7 +940,7 @@ PetscErrorCode StrikeSlip_LinearElastic_qd_fd::prepare_fd2qd()
     ierr = VecCopy(_fault_fd->_Vw,         _fault_qd->_Vw); CHKERRQ(ierr);
   }
 
-
+PetscPrintf(PETSC_COMM_WORLD,"in prepare_fd2qd line 943\n");
 
 
   #if VERBOSE > 1
@@ -970,12 +970,13 @@ PetscErrorCode StrikeSlip_LinearElastic_qd_fd::prepare_qd2fd()
   // switch strides to qd values
   _stride1D = _stride1D_fd;
   _stride2D = _stride1D_fd;
-
+PetscPrintf(PETSC_COMM_WORLD,"in prepare_qd2fd line 973\n");
   // save current variables as n-1 time step
   ierr = VecCopy(_fault_qd->_slip,_varFDPrev["slip"]); CHKERRQ(ierr);
   ierr = VecCopy(_fault_qd->_psi,_varFDPrev["psi"]); CHKERRQ(ierr);
-  ierr = VecCopy(_material->_u,_varFDPrev["u"]); CHKERRQ(ierr);
-  if (_thermalCoupling != "no" ) { VecCopy(_varIm["Temp"], _varFDPrev["Temp"]); } // if solving the heat equation
+  ierr = VecCopy(_material->_u,_varFDPrev["u"]); CHKERRQ(ierr); PetscPrintf(PETSC_COMM_WORLD,"in prepare_qd2fd line 977\n");
+  if (_evolveTemperature == 1) { VecCopy(_varIm["Temp"], _varFDPrev["Temp"]); } // if solving the heat equation
+PetscPrintf(PETSC_COMM_WORLD,"in prepare_qd2fd line 979\n");
   if (_hydraulicCoupling.compare("no")!=0 ) {
     VecCopy(_varIm["pressure"], _varFDPrev["pressure"]);
     if ((_p->_permSlipDependent).compare("yes")==0) {
@@ -987,12 +988,12 @@ PetscErrorCode StrikeSlip_LinearElastic_qd_fd::prepare_qd2fd()
   _inDynamic = 0;
   ierr = integrate_singleQDTimeStep(); CHKERRQ(ierr);
   _inDynamic = 1;
-
+PetscPrintf(PETSC_COMM_WORLD,"in prepare_qd2fd line 991\n");
   // update varFD to reflect latest values
   ierr = VecCopy(_fault_qd->_slip,_varFD["slip"]); CHKERRQ(ierr);
   ierr = VecCopy(_fault_qd->_psi,_varFD["psi"]); CHKERRQ(ierr);
   ierr = VecCopy(_material->_u,_varFD["u"]); CHKERRQ(ierr);
-  if (_thermalCoupling != "no" ) { ierr = VecCopy(_varIm["Temp"], _varFD["Temp"]); CHKERRQ(ierr); } // if solving the heat equation
+  if (_evolveTemperature == 1) { ierr = VecCopy(_varIm["Temp"], _varFD["Temp"]); CHKERRQ(ierr); } // if solving the heat equation
   if (_hydraulicCoupling.compare("no")!=0 ) {
     VecCopy(_varIm["pressure"], _varFD["pressure"]);
     if ((_p->_permSlipDependent).compare("yes")==0) {
@@ -1003,12 +1004,12 @@ PetscErrorCode StrikeSlip_LinearElastic_qd_fd::prepare_qd2fd()
       _fault_fd->setSNEff(_p->_p);
     }
   }
-
+PetscPrintf(PETSC_COMM_WORLD,"in prepare_qd2fd line 1007\n");
   // now change u to du
   ierr = VecAXPY(_varFD["u"],-1.0,_varFDPrev["u"]); CHKERRQ(ierr);
   ierr = VecCopy(_varFDPrev["u"],_u0); CHKERRQ(ierr);
   ierr = VecSet(_varFDPrev["u"],0.0); CHKERRQ(ierr);
-
+PetscPrintf(PETSC_COMM_WORLD,"in prepare_qd2fd line 1012\n");
 
   // update fault internal variables
   ierr = VecCopy(_fault_qd->_psi,       _fault_fd->_psi); CHKERRQ(ierr);
@@ -1025,7 +1026,7 @@ PetscErrorCode StrikeSlip_LinearElastic_qd_fd::prepare_qd2fd()
     ierr = VecCopy(_fault_qd->_Tw,         _fault_fd->_Tw); CHKERRQ(ierr);
     ierr = VecCopy(_fault_qd->_Vw,         _fault_fd->_Vw); CHKERRQ(ierr);
   }
-
+PetscPrintf(PETSC_COMM_WORLD,"in prepare_qd2fd line 1029\n");
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
   #endif
