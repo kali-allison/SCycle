@@ -306,7 +306,7 @@ PetscErrorCode StrikeSlip_LinearElastic_qd_fd::checkInput()
   }
   if (_thermalCoupling != "no" && (_timeIntegrator != "RK32_WBE" && _timeIntegrator != "RK43_WBE")) {
     PetscPrintf(PETSC_COMM_WORLD,"thermal coupling = %s\n",_thermalCoupling.c_str());
-    assert(0);
+    //~ assert(0);
   }
 
   #if VERBOSE > 1
