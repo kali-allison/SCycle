@@ -533,14 +533,13 @@ PetscErrorCode RK32_WBE::loadCheckpoint(const std::string inputDir)
 
   ierr = PetscViewerHDF5Open(PETSC_COMM_WORLD, fileName.c_str(), FILE_MODE_READ, &viewer);CHKERRQ(ierr);
 
-  ierr = PetscViewerHDF5PushGroup(viewer, "/time1D");                                                  CHKERRQ(ierr);
-  ierr = PetscViewerHDF5ReadAttribute(viewer, "time1D", "stepCount", PETSC_INT, NULL, &_stepCount); CHKERRQ(ierr);
-  ierr = PetscViewerHDF5ReadAttribute(viewer, "time1D", "errA0", PETSC_SCALAR, NULL, &_errA[0]); CHKERRQ(ierr);
-  ierr = PetscViewerHDF5ReadAttribute(viewer, "time1D", "errA1", PETSC_SCALAR, NULL, &_errA[1]); CHKERRQ(ierr);
-  ierr = PetscViewerHDF5ReadAttribute(viewer, "time1D", "totErr", PETSC_SCALAR, NULL, &_totErr); CHKERRQ(ierr);
-  ierr = PetscViewerHDF5ReadAttribute(viewer, "time1D", "deltaT", PETSC_SCALAR, NULL, &_deltaT); CHKERRQ(ierr);
-  ierr = PetscViewerHDF5ReadAttribute(viewer, "time1D", "deltaT", PETSC_SCALAR, NULL, &_newDeltaT); CHKERRQ(ierr);
-
+  ierr = PetscViewerHDF5PushGroup(viewer, "/odeSolver");                                                  CHKERRQ(ierr);
+  ierr = PetscViewerHDF5ReadAttribute(viewer, "odeSolver_chkpt_data", "stepCount", PETSC_INT, NULL, &_stepCount); CHKERRQ(ierr);
+  ierr = PetscViewerHDF5ReadAttribute(viewer, "odeSolver_chkpt_data", "errA0", PETSC_SCALAR, NULL, &_errA[0]); CHKERRQ(ierr);
+  ierr = PetscViewerHDF5ReadAttribute(viewer, "odeSolver_chkpt_data", "errA1", PETSC_SCALAR, NULL, &_errA[1]); CHKERRQ(ierr);
+  ierr = PetscViewerHDF5ReadAttribute(viewer, "odeSolver_chkpt_data", "totErr", PETSC_SCALAR, NULL, &_totErr); CHKERRQ(ierr);
+  ierr = PetscViewerHDF5ReadAttribute(viewer, "odeSolver_chkpt_data", "deltaT", PETSC_SCALAR, NULL, &_deltaT); CHKERRQ(ierr);
+  ierr = PetscViewerHDF5ReadAttribute(viewer, "odeSolver_chkpt_data", "deltaT", PETSC_SCALAR, NULL, &_newDeltaT); CHKERRQ(ierr);
   ierr = PetscViewerHDF5PopGroup(viewer);                                                              CHKERRQ(ierr);
 
   #if VERBOSE > 1
@@ -1167,14 +1166,13 @@ PetscErrorCode RK43_WBE::loadCheckpoint(const std::string inputDir)
 
   ierr = PetscViewerHDF5Open(PETSC_COMM_WORLD, fileName.c_str(), FILE_MODE_READ, &viewer);CHKERRQ(ierr);
 
-  ierr = PetscViewerHDF5PushGroup(viewer, "/time1D");                                                  CHKERRQ(ierr);
-  ierr = PetscViewerHDF5ReadAttribute(viewer, "time1D", "stepCount", PETSC_INT, NULL, &_stepCount); CHKERRQ(ierr);
-  ierr = PetscViewerHDF5ReadAttribute(viewer, "time1D", "errA0", PETSC_SCALAR, NULL, &_errA[0]); CHKERRQ(ierr);
-  ierr = PetscViewerHDF5ReadAttribute(viewer, "time1D", "errA1", PETSC_SCALAR, NULL, &_errA[1]); CHKERRQ(ierr);
-  ierr = PetscViewerHDF5ReadAttribute(viewer, "time1D", "totErr", PETSC_SCALAR, NULL, &_totErr); CHKERRQ(ierr);
-  ierr = PetscViewerHDF5ReadAttribute(viewer, "time1D", "deltaT", PETSC_SCALAR, NULL, &_deltaT); CHKERRQ(ierr);
-  ierr = PetscViewerHDF5ReadAttribute(viewer, "time1D", "deltaT", PETSC_SCALAR, NULL, &_newDeltaT); CHKERRQ(ierr);
-
+  ierr = PetscViewerHDF5PushGroup(viewer, "/odeSolver");                                                  CHKERRQ(ierr);
+  ierr = PetscViewerHDF5ReadAttribute(viewer, "odeSolver_chkpt_data", "stepCount", PETSC_INT, NULL, &_stepCount); CHKERRQ(ierr);
+  ierr = PetscViewerHDF5ReadAttribute(viewer, "odeSolver_chkpt_data", "errA0", PETSC_SCALAR, NULL, &_errA[0]); CHKERRQ(ierr);
+  ierr = PetscViewerHDF5ReadAttribute(viewer, "odeSolver_chkpt_data", "errA1", PETSC_SCALAR, NULL, &_errA[1]); CHKERRQ(ierr);
+  ierr = PetscViewerHDF5ReadAttribute(viewer, "odeSolver_chkpt_data", "totErr", PETSC_SCALAR, NULL, &_totErr); CHKERRQ(ierr);
+  ierr = PetscViewerHDF5ReadAttribute(viewer, "odeSolver_chkpt_data", "deltaT", PETSC_SCALAR, NULL, &_deltaT); CHKERRQ(ierr);
+  ierr = PetscViewerHDF5ReadAttribute(viewer, "odeSolver_chkpt_data", "deltaT", PETSC_SCALAR, NULL, &_newDeltaT); CHKERRQ(ierr);
   ierr = PetscViewerHDF5PopGroup(viewer);                                                              CHKERRQ(ierr);
 
   #if VERBOSE > 1
