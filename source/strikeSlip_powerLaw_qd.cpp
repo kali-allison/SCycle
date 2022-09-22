@@ -588,7 +588,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::writeStep1D(PetscInt stepCount, PetscScal
 
     ierr = VecView(_time1DVec, _viewer1D);                              CHKERRQ(ierr);
     ierr = VecView(_dtime1DVec, _viewer1D);                             CHKERRQ(ierr);
-    if (_JjSSVec != NULL) { ierr = VecView(_JjSSVec, _viewer2D); CHKERRQ(ierr); }
+    if (_JjSSVec != NULL) { ierr = VecView(_JjSSVec, _viewer1D); CHKERRQ(ierr); }
     ierr = PetscViewerHDF5PopTimestepping(_viewer1D);                CHKERRQ(ierr);
     ierr = PetscViewerHDF5PopGroup(_viewer1D);                       CHKERRQ(ierr);
   }
@@ -598,7 +598,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::writeStep1D(PetscInt stepCount, PetscScal
     ierr = PetscViewerHDF5IncrementTimestep(_viewer1D);              CHKERRQ(ierr);
     ierr = VecView(_time1DVec, _viewer1D);                           CHKERRQ(ierr);
     ierr = VecView(_dtime1DVec, _viewer1D);                          CHKERRQ(ierr);
-    if (_JjSSVec != NULL) { ierr = VecView(_JjSSVec, _viewer2D); CHKERRQ(ierr); }
+    if (_JjSSVec != NULL) { ierr = VecView(_JjSSVec, _viewer1D); CHKERRQ(ierr); }
     ierr = PetscViewerHDF5PopTimestepping(_viewer1D);                CHKERRQ(ierr);
     ierr = PetscViewerHDF5PopGroup(_viewer1D);                       CHKERRQ(ierr);
   }
