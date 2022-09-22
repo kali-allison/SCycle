@@ -551,9 +551,9 @@ double startTime = MPI_Wtime();
   else { ierr = _quadEx->setTimeStepBounds(_minDeltaT,maxTimeStep_tot);CHKERRQ(ierr); }
 
   // stopping criteria for time integration
-  //~ if (_D->_systemEvolutionType == "steadyStateIts") {
-    //~ if (time >= _maxSSIts_time) { stopIntegration = 1; }
-  //~ }
+  if (_D->_systemEvolutionType == "steadyStateIts") {
+    if (time >= _maxSSIts_time) { stopIntegration = 1; }
+  }
 
   #if VERBOSE > 0
     ierr = PetscPrintf(PETSC_COMM_WORLD,"%i: t = %.15e s, dt = %.5e, min Tmax = %.5e\n",stepCount,_currTime,_deltaT,maxDeltaT_momBal);CHKERRQ(ierr);
@@ -1478,6 +1478,10 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::solveSStau(const PetscInt Jj)
   ierr = VecPointwiseMult(_fault->_tauQSP,_fault->_eta_rad,_fault->_tauQSP); CHKERRQ(ierr); // tauQS = V * eta_rad
   ierr = VecAYPX(_fault->_tauQSP,1.0,_fault->_tauP); // tauQS = tau + V*eta_rad
 
+  // update momentum balance equation boundary conditions to be compatible with steady-state solve step
+  //~ _material->changeBCTypes(_mat_qd_bcRType,_mat_qd_bcTType,_mat_qd_bcLType,_mat_qd_bcBType);
+  //~ Mat A; _material->_sbp->getA(A);
+  //~ ierr = _material->setupKSP(_material->_ksp,_material->_pc,A,_material->_linSolverSS); CHKERRQ(ierr);
 
   #if VERBOSE > 1
      PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -1495,6 +1499,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::solveSSViscoelasticProblem(const PetscInt
   #endif
 
   // set up KSP for steady-state solution
+  _material->changeBCTypes(_mat_bcRType,_mat_bcTType,"Neumann",_mat_bcBType);
   Mat A;
   _material->_sbp->getA(A);
   _material->setupKSP(_material->_ksp,_material->_pc,A,_material->_linSolverSS);

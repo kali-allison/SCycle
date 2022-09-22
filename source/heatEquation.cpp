@@ -34,7 +34,7 @@ HeatEquation::HeatEquation(Domain& D)
   setFields();
 
   if (_D->_restartFromChkpt) { loadCheckpoint(); }
-  else if (_D->_restartFromChkptSS) { loadCheckpoint(); }
+  else if (_D->_restartFromChkptSS) { loadCheckpointSS(); }
   else { loadFieldsFromFiles(); }
 
   if (_D->_restartFromChkpt == 0 &&_loadICs == 0 && _isMMS == 0 ) { computeInitialSteadyStateTemp(); }
@@ -1859,7 +1859,6 @@ PetscErrorCode HeatEquation::loadCheckpoint()
   ierr = PetscViewerHDF5PushGroup(viewer, "/heatEquation");             CHKERRQ(ierr);
   ierr = VecLoad(_k, viewer);                                           CHKERRQ(ierr);
   ierr = VecLoad(_rho, viewer);                                         CHKERRQ(ierr);
-  ierr = VecLoad(_Qrad, viewer);                                        CHKERRQ(ierr);
   ierr = VecLoad(_c, viewer);                                           CHKERRQ(ierr);
   ierr = VecLoad(_Tamb, viewer);                                        CHKERRQ(ierr);
   if (_wFrictionalHeating.compare("yes")==0) {
@@ -1869,7 +1868,7 @@ PetscErrorCode HeatEquation::loadCheckpoint()
     VecScale(_w,1e-3); // convert w from m to km
   }
   if (_wRadioHeatGen.compare("yes")==0) {
-    ierr = VecLoad(_w, viewer);                                         CHKERRQ(ierr);
+    ierr = VecLoad(_Qrad, viewer);                                        CHKERRQ(ierr);
   }
 
   ierr = VecLoad(_bcR,viewer);                                          CHKERRQ(ierr);
@@ -1910,7 +1909,6 @@ PetscErrorCode HeatEquation::loadCheckpointSS()
   ierr = PetscViewerHDF5PushGroup(viewer, "/heatEquation");             CHKERRQ(ierr);
   ierr = VecLoad(_k, viewer);                                           CHKERRQ(ierr);
   ierr = VecLoad(_rho, viewer);                                         CHKERRQ(ierr);
-  ierr = VecLoad(_Qrad, viewer);                                        CHKERRQ(ierr);
   ierr = VecLoad(_c, viewer);                                           CHKERRQ(ierr);
   ierr = VecLoad(_Tamb, viewer);                                        CHKERRQ(ierr);
   if (_wFrictionalHeating.compare("yes")==0) {
@@ -1920,7 +1918,7 @@ PetscErrorCode HeatEquation::loadCheckpointSS()
     VecScale(_w,1e-3); // convert w from m to km
   }
   if (_wRadioHeatGen.compare("yes")==0) {
-    ierr = VecLoad(_w, viewer);                                         CHKERRQ(ierr);
+    ierr = VecLoad(_Qrad, viewer);                                        CHKERRQ(ierr);
   }
   PetscViewerDestroy(&viewer);
 

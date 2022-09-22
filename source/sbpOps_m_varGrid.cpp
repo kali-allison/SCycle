@@ -1128,6 +1128,15 @@ PetscErrorCode SbpOps_m_varGrid::getCoordTrans(Mat&J, Mat& Jinv,Mat& qy,Mat& rz,
   return 0;
 }
 
+PetscErrorCode SbpOps_m_varGrid::getBCTypes(std::string& bcRType,std::string& bcTType,std::string& bcLType,std::string& bcBType)
+{
+  bcRType = _bcRType;
+  bcTType = _bcTType;
+  bcLType = _bcLType;
+  bcBType = _bcBType;
+  return 0;
+}
+
 
 // compute D2ymu using my class Spmat
 PetscErrorCode SbpOps_m_varGrid::constructDyymu(const TempMats_m_varGrid& tempMats, Mat &Dyymu)

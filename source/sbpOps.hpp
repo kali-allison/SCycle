@@ -65,7 +65,7 @@ class SbpOps
     // return penalty weight h11 (the first element of the H matrix)
     virtual PetscErrorCode geth11(PetscScalar &h11y, PetscScalar &h11z) = 0;
 
-    // allow access to matrices
+    // allow access to internal fields
     virtual PetscErrorCode getA(Mat &mat) = 0;
     virtual PetscErrorCode getH(Mat &mat) = 0;
     virtual PetscErrorCode getDs(Mat &Dy,Mat &Dz) = 0;
@@ -74,6 +74,7 @@ class SbpOps
     virtual PetscErrorCode getes(Mat& e0y_Iz,Mat& eNy_Iz,Mat& Iy_e0z,Mat& Iy_eNz) = 0;
     virtual PetscErrorCode getHs(Mat& Hy_Iz,Mat& Iy_Hz) = 0;
     virtual PetscErrorCode getHinvs(Mat& Hyinv_Iz,Mat& Iy_Hzinv) = 0;
+    virtual PetscErrorCode getBCTypes(std::string& bcRType,std::string& bcTType,std::string& bcLType,std::string& bcBType) = 0;
 
     // various pieces of the Jacobian of a coordinate transformation
     virtual PetscErrorCode getCoordTrans(Mat&J, Mat& Jinv,Mat& qy,Mat& rz, Mat& yq, Mat& zr) = 0;

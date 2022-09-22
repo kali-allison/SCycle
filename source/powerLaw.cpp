@@ -408,7 +408,7 @@ PetscErrorCode DislocationCreep::writeContext(PetscViewer &viewer)
   #endif
 
   // write context variables
-  ierr = PetscViewerHDF5PushGroup(viewer, "/momBal/dislocationCreep");          CHKERRQ(ierr);
+  ierr = PetscViewerHDF5PushGroup(viewer, "/momBal/dislocationCreep");  CHKERRQ(ierr);
   ierr = VecView(_A, viewer);                                           CHKERRQ(ierr);
   ierr = VecView(_QR, viewer);                                          CHKERRQ(ierr);
   ierr = VecView(_n, viewer);                                           CHKERRQ(ierr);
@@ -431,7 +431,7 @@ PetscErrorCode DislocationCreep::loadCheckpoint(PetscViewer &viewer)
   #endif
 
   // write context variables
-  ierr = PetscViewerHDF5PushGroup(viewer, "/momBal/dislocationCreep");          CHKERRQ(ierr);
+  ierr = PetscViewerHDF5PushGroup(viewer, "/momBal/dislocationCreep");  CHKERRQ(ierr);
   ierr = VecLoad(_A, viewer);                                           CHKERRQ(ierr);
   ierr = VecLoad(_QR, viewer);                                          CHKERRQ(ierr);
   ierr = VecLoad(_n, viewer);                                           CHKERRQ(ierr);
@@ -864,8 +864,13 @@ PowerLaw::PowerLaw(Domain& D,std::string bcRType,std::string bcTType,std::string
     _diff = new DiffusionCreep(*_y,*_z,_file,_delim);
   }
 
-  if (_D->_restartFromChkpt) { loadCheckpoint(); }
-  else if (_D->_restartFromChkptSS) { loadCheckpoint(); }
+  if (_D->_restartFromChkpt) {
+    assert(0);
+    loadCheckpoint();
+  }
+  else if (_D->_restartFromChkptSS) {
+    loadCheckpointSS();
+  }
   else { loadFieldsFromFiles(); }
 
   // set up matrix operators and KSP environment
@@ -2611,11 +2616,11 @@ double startTime = MPI_Wtime();
   ierr = VecLoad(_mu,viewer);                                           CHKERRQ(ierr);
   ierr = VecLoad(_rho,viewer);                                          CHKERRQ(ierr);
   ierr = VecLoad(_cs,viewer);                                           CHKERRQ(ierr);
+  ierr = PetscViewerHDF5PopGroup(viewer);                               CHKERRQ(ierr);
+  if (_wDislCreep.compare("yes")==0) { _disl->loadCheckpoint(viewer); }
   if (_wPlasticity.compare("yes")==0) {_plastic->loadCheckpoint(viewer); }
   if (_wDiffCreep.compare("yes")==0) { _diff->loadCheckpoint(viewer); }
-  if (_wDislCreep.compare("yes")==0) { _disl->loadCheckpoint(viewer); }
   PetscViewerDestroy(&viewer);
-
 
   fileName = _outputDir + "data_steadyState.h5";
   ierr = PetscViewerHDF5Open(PETSC_COMM_WORLD, fileName.c_str(), FILE_MODE_READ, &viewer);CHKERRQ(ierr);
@@ -2629,8 +2634,6 @@ double startTime = MPI_Wtime();
   ierr = VecLoad(_bcT,viewer);                                          CHKERRQ(ierr);
   ierr = VecLoad(_bcRShift, viewer);                                    CHKERRQ(ierr);
 
-  ierr = VecLoad(_T,viewer);                                            CHKERRQ(ierr);
-
   ierr = VecLoad(_u,viewer);                                            CHKERRQ(ierr);
   ierr = VecLoad(_sxy,viewer);                                          CHKERRQ(ierr);
   ierr = VecLoad(_sxz,viewer);                                          CHKERRQ(ierr);
@@ -2643,23 +2646,26 @@ double startTime = MPI_Wtime();
   ierr = VecLoad(_dgVxz,viewer);                                        CHKERRQ(ierr);
   ierr = VecLoad(_effVisc,viewer);                                      CHKERRQ(ierr);
 
+  ierr = PetscViewerHDF5PushGroup(viewer, "/heatEquation");             CHKERRQ(ierr);
+  ierr = VecLoad(_T,viewer);                                            CHKERRQ(ierr);
+  ierr = PetscViewerHDF5PopGroup(viewer);                               CHKERRQ(ierr);
+
   if (_wDiffCreep.compare("yes")==0) {
-    ierr = PetscViewerHDF5PushGroup(viewer, "/momBal/diffusionCreep");          CHKERRQ(ierr);
+    ierr = PetscViewerHDF5PushGroup(viewer, "/momBal/diffusionCreep");  CHKERRQ(ierr);
     ierr = VecLoad(_grainSize,viewer);                                  CHKERRQ(ierr);
     ierr = VecLoad(_diff->_invEffVisc,viewer);                          CHKERRQ(ierr);
     ierr = PetscViewerHDF5PopGroup(viewer);                             CHKERRQ(ierr);
   }
   if (_wDislCreep.compare("yes")==0) {
-    _disl->loadCheckpoint(viewer);
     ierr = PetscViewerHDF5PushGroup(viewer, "/momBal/dislocationCreep");CHKERRQ(ierr);
     ierr = VecLoad(_dgVdev_disl,viewer);                                CHKERRQ(ierr);
     ierr = VecLoad(_disl->_invEffVisc,viewer);                          CHKERRQ(ierr);
     ierr = PetscViewerHDF5PopGroup(viewer);                             CHKERRQ(ierr);
   }
 
-  ierr = PetscViewerHDF5PopGroup(viewer);                             CHKERRQ(ierr);
+  ierr = PetscViewerHDF5PopGroup(viewer);                               CHKERRQ(ierr);
 
-  PetscViewerDestroy(&viewer);
+
 
   _writeTime += MPI_Wtime() - startTime;
   #if VERBOSE > 1

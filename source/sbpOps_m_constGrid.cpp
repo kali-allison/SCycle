@@ -955,6 +955,14 @@ PetscErrorCode SbpOps_m_constGrid::getHinvs(Mat& Hyinv_Iz,Mat& Iy_Hzinv)
 }
 PetscErrorCode SbpOps_m_constGrid::getCoordTrans(Mat&J, Mat& Jinv,Mat& qy,Mat& rz, Mat& yq, Mat& zr) { assert(0); return 0; }
 
+PetscErrorCode SbpOps_m_constGrid::getBCTypes(std::string& bcRType,std::string& bcTType,std::string& bcLType,std::string& bcBType)
+{
+  bcRType = _bcRType;
+  bcTType = _bcTType;
+  bcLType = _bcLType;
+  bcBType = _bcBType;
+  return 0;
+}
 
 //======================================================================
 

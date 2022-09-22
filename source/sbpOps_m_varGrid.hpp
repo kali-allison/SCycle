@@ -131,6 +131,7 @@ public:
     PetscErrorCode getes(Mat& e0y_Iz,Mat& eNy_Iz,Mat& Iy_e0z,Mat& Iy_eNz);
     PetscErrorCode getHs(Mat& Hy_Iz,Mat& Iy_Hz);
     PetscErrorCode getHinvs(Mat& Hyinv_Iz,Mat& Iy_Hzinv);
+    PetscErrorCode getBCTypes(std::string& bcRType,std::string& bcTType,std::string& bcLType,std::string& bcBType);
 
   private:
     // disable default copy constructor and assignment operator

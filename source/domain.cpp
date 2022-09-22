@@ -573,6 +573,7 @@ PetscErrorCode Domain::loadCheckpointSS()
   bool fileExists = 0;
   fileExists = doesFileExist(fileName1) && doesFileExist(fileName2);
   if (fileExists && _restartFromChkptSS == 1) {
+    _restartFromChkpt = 0;
     _outputFileMode = FILE_MODE_WRITE;
     PetscPrintf(PETSC_COMM_WORLD,"Note: will start from previous steady-state iteration.\n");
 
