@@ -1126,7 +1126,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::d_dt(const PetscScalar time,const map<str
   // 3. implicitly integrated variables
 
   // heat equation
-  if (varIm.find("Temp") != varIm.end()) {
+  if (_evolveTemperature == 1 && varIm.find("Temp") != varIm.end()) {
 
     // frictional shear heating source terms
     Vec V = dvarEx.find("slip")->second;
@@ -1709,10 +1709,10 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::writeSS(const int Ii)
   ierr = _material->writeStep1D(_viewerSS);                             CHKERRQ(ierr);
   ierr = _fault->writeStep(_viewerSS);                                  CHKERRQ(ierr);
   if (_hydraulicCoupling.compare("no")!=0) { ierr = _p->writeStep(_viewerSS); CHKERRQ(ierr);}
-  if (_thermalCoupling.compare("no")!=0) { ierr =  _he->writeStep1D(_viewerSS); CHKERRQ(ierr); }
+  if (_he!=NULL) { ierr =  _he->writeStep1D(_viewerSS); CHKERRQ(ierr); }
 
   ierr = _material->writeStep2D(_viewerSS);                             CHKERRQ(ierr);
-  if (_computeSSTemperature == 1) { ierr =  _he->writeStep2D(_viewerSS); CHKERRQ(ierr); }
+  if (_he!=NULL) { ierr =  _he->writeStep2D(_viewerSS); CHKERRQ(ierr); }
   if (_computeSSGrainSize == 1) { ierr =  _grainDist->writeStep(_viewerSS); CHKERRQ(ierr); }
 
   if (needToDestroyJjSSVec == 1) {VecDestroy(&_JjSSVec);}
