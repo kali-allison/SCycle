@@ -276,7 +276,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::checkInput()
     assert(_evolveGrainSize == 1 || _computeSSGrainSize == 1);
   }
 
-  if (_thermalCoupling != "no" && (_timeIntegrator != "RK32_WBE" && _timeIntegrator != "RK43_WBE")) {
+  if (_thermalCoupling != "no" && _evolveTemperature ==1 && (_timeIntegrator != "RK32_WBE" && _timeIntegrator != "RK43_WBE")) {
     assert(0);
   }
 
