@@ -492,6 +492,9 @@ PetscErrorCode GrainSizeEvolution::computeSteadyStateGrainSize(const Vec& sdev, 
     if ( std::isinf( pow(BB/AA,1.0/(a-c)) ) ) {
       d[Jj] = 1e-8;
     }
+    else if (std::isnan(BB)) {
+      d[Jj] = 1e-8;
+    }
     else {
       d[Jj] = pow(BB/AA,1.0/(a-c)) * pow(s[Jj],b/(a-c));
     }
