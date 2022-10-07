@@ -39,7 +39,7 @@ public:
   Vec             _yieldStress; // (MPa)
   Vec             _invEffVisc; // (GPa) eff. viscosity from plasticity
 
-  Pseudoplasticity(const Vec& y, const Vec& z, const char *file, const string delim);
+  Pseudoplasticity(Domain& D,const Vec& y, const Vec& z, const char *file, const string delim);
   ~Pseudoplasticity();
   PetscErrorCode guessInvEffVisc(const double dg);
   PetscErrorCode computeInvEffVisc(const Vec& dgdev);
@@ -71,7 +71,7 @@ public:
   Vec             _A,_n,_QR;
   Vec             _invEffVisc; // 1 / (effective viscosity)
 
-  DislocationCreep(const Vec& y, const Vec& z, const char *file, const string delim);
+  DislocationCreep(Domain& D, const Vec& y, const Vec& z, const char *file, const string delim);
   ~DislocationCreep();
   PetscErrorCode guessInvEffVisc(const Vec& Temp, const double dg);
   PetscErrorCode computeInvEffVisc(const Vec& Temp,const Vec& sdev);
@@ -103,7 +103,7 @@ public:
   Vec             _A,_n,_QR,_m;
   Vec             _invEffVisc; // 1 / (effective viscosity)
 
-  DiffusionCreep(const Vec& y, const Vec& z, const char *file, const string delim);
+  DiffusionCreep(Domain& D,const Vec& y, const Vec& z, const char *file, const string delim);
   ~DiffusionCreep();
   PetscErrorCode guessInvEffVisc(const Vec& Temp,const double dg,const Vec& grainSize);
   PetscErrorCode computeInvEffVisc(const Vec& Temp,const Vec& sdev,const Vec& grainSize);

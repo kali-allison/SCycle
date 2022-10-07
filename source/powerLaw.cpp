@@ -7,7 +7,7 @@ using namespace std;
 //======================================================================
 // pseudoplasticity class
 
-Pseudoplasticity::Pseudoplasticity(const Vec& y, const Vec& z, const char *file, const string delim)
+Pseudoplasticity::Pseudoplasticity(Domain& D, const Vec& y, const Vec& z, const char *file, const string delim)
   : _file(file),_delim(delim),_inputDir("unspecified"),_y(&y),_z(&z)
 {
   #if VERBOSE > 1
@@ -18,7 +18,10 @@ Pseudoplasticity::Pseudoplasticity(const Vec& y, const Vec& z, const char *file,
   loadSettings();
   checkInput();
   setMaterialParameters();
-  loadFieldsFromFiles();
+  //~ loadFieldsFromFiles();
+  if (!D._restartFromChkpt && !D._restartFromChkptSS) {
+    loadFieldsFromFiles();
+  }
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -247,7 +250,7 @@ PetscErrorCode Pseudoplasticity::computeInvEffVisc(const Vec& dgdev)
 //======================================================================
 // dislocation creep class
 
-DislocationCreep::DislocationCreep(const Vec& y, const Vec& z, const char *file, const string delim)
+DislocationCreep::DislocationCreep(Domain& D, const Vec& y, const Vec& z, const char *file, const string delim)
   : _file(file),_delim(delim),_inputDir("unspecified"),_y(&y),_z(&z)
 {
   #if VERBOSE > 1
@@ -258,7 +261,10 @@ DislocationCreep::DislocationCreep(const Vec& y, const Vec& z, const char *file,
   loadSettings();
   checkInput();
   setMaterialParameters();
-  loadFieldsFromFiles();
+  //~ loadFieldsFromFiles();
+  if (!D._restartFromChkpt && !D._restartFromChkptSS) {
+    loadFieldsFromFiles();
+  }
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -530,7 +536,7 @@ PetscErrorCode DislocationCreep::computeInvEffVisc(const Vec& Temp,const Vec& sd
 // diffusion creep class
 
 
-DiffusionCreep::DiffusionCreep(const Vec& y, const Vec& z, const char *file, const string delim)
+DiffusionCreep::DiffusionCreep(Domain& D, const Vec& y, const Vec& z, const char *file, const string delim)
   : _file(file),_delim(delim),_inputDir("unspecified"),_y(&y),_z(&z)
 {
   #if VERBOSE > 1
@@ -541,7 +547,11 @@ DiffusionCreep::DiffusionCreep(const Vec& y, const Vec& z, const char *file, con
   loadSettings();
   checkInput();
   setMaterialParameters();
-  loadFieldsFromFiles();
+  //~ loadFieldsFromFiles();
+
+  if (!D._restartFromChkpt && !D._restartFromChkptSS) {
+    loadFieldsFromFiles();
+  }
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -855,17 +865,16 @@ PowerLaw::PowerLaw(Domain& D,std::string bcRType,std::string bcTType,std::string
 
   // set up deformation mechanisms
   if (_wPlasticity == "yes") {
-    _plastic = new Pseudoplasticity(*_y,*_z,_file,_delim);
+    _plastic = new Pseudoplasticity(D, *_y,*_z,_file,_delim);
   }
   if (_wDislCreep == "yes") {
-    _disl = new DislocationCreep(*_y,*_z,_file,_delim);
+    _disl = new DislocationCreep(D, *_y,*_z,_file,_delim);
   }
   if (_wDiffCreep == "yes") {
-    _diff = new DiffusionCreep(*_y,*_z,_file,_delim);
+    _diff = new DiffusionCreep(D, *_y,*_z,_file,_delim);
   }
 
   if (_D->_restartFromChkpt) {
-    assert(0);
     loadCheckpoint();
   }
   else if (_D->_restartFromChkptSS) {
@@ -2651,12 +2660,14 @@ double startTime = MPI_Wtime();
   ierr = PetscViewerHDF5PopGroup(viewer);                               CHKERRQ(ierr);
 
   if (_wDiffCreep.compare("yes")==0) {
+    _diff->loadCheckpoint(viewer);
     ierr = PetscViewerHDF5PushGroup(viewer, "/momBal/diffusionCreep");  CHKERRQ(ierr);
     ierr = VecLoad(_grainSize,viewer);                                  CHKERRQ(ierr);
     ierr = VecLoad(_diff->_invEffVisc,viewer);                          CHKERRQ(ierr);
     ierr = PetscViewerHDF5PopGroup(viewer);                             CHKERRQ(ierr);
   }
   if (_wDislCreep.compare("yes")==0) {
+    _disl->loadCheckpoint(viewer);
     ierr = PetscViewerHDF5PushGroup(viewer, "/momBal/dislocationCreep");CHKERRQ(ierr);
     ierr = VecLoad(_dgVdev_disl,viewer);                                CHKERRQ(ierr);
     ierr = VecLoad(_disl->_invEffVisc,viewer);                          CHKERRQ(ierr);
@@ -2664,7 +2675,6 @@ double startTime = MPI_Wtime();
   }
 
   ierr = PetscViewerHDF5PopGroup(viewer);                               CHKERRQ(ierr);
-
 
 
   _writeTime += MPI_Wtime() - startTime;
