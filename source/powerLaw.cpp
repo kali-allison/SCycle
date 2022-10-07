@@ -2660,14 +2660,12 @@ double startTime = MPI_Wtime();
   ierr = PetscViewerHDF5PopGroup(viewer);                               CHKERRQ(ierr);
 
   if (_wDiffCreep.compare("yes")==0) {
-    _diff->loadCheckpoint(viewer);
     ierr = PetscViewerHDF5PushGroup(viewer, "/momBal/diffusionCreep");  CHKERRQ(ierr);
     ierr = VecLoad(_grainSize,viewer);                                  CHKERRQ(ierr);
     ierr = VecLoad(_diff->_invEffVisc,viewer);                          CHKERRQ(ierr);
     ierr = PetscViewerHDF5PopGroup(viewer);                             CHKERRQ(ierr);
   }
   if (_wDislCreep.compare("yes")==0) {
-    _disl->loadCheckpoint(viewer);
     ierr = PetscViewerHDF5PushGroup(viewer, "/momBal/dislocationCreep");CHKERRQ(ierr);
     ierr = VecLoad(_dgVdev_disl,viewer);                                CHKERRQ(ierr);
     ierr = VecLoad(_disl->_invEffVisc,viewer);                          CHKERRQ(ierr);
