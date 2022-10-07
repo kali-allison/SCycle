@@ -758,11 +758,10 @@ PetscErrorCode GrainSizeEvolution::loadCheckpointSS()
 
   string fileName = _outputDir + "data_context.h5";
   ierr = PetscViewerHDF5Open(PETSC_COMM_WORLD, fileName.c_str(), FILE_MODE_READ, &viewer);CHKERRQ(ierr);
-  ierr = PetscViewerHDF5PushGroup(viewer, "/grainSizeEv");               CHKERRQ(ierr);
 
-  ierr = PetscViewerHDF5PushGroup(viewer, "/grainSizeEv");    CHKERRQ(ierr);
-  ierr = VecLoad(_f, viewer);                                           CHKERRQ(ierr);
-  ierr = PetscViewerHDF5PopGroup(viewer);                               CHKERRQ(ierr);
+  //~ ierr = PetscViewerHDF5PushGroup(viewer, "/grainSizeEv");    CHKERRQ(ierr);
+  //~ ierr = VecLoad(_f, viewer);                                           CHKERRQ(ierr);
+  //~ ierr = PetscViewerHDF5PopGroup(viewer);                               CHKERRQ(ierr);
   if (_grainSizeEvType=="transient" || _grainSizeEvType=="steadyState" || _grainSizeEvType=="constant" ||
     _grainSizeEvTypeSS=="transient" ||  _grainSizeEvTypeSS=="steadyState" ||  _grainSizeEvTypeSS=="constant") {
     ierr = PetscViewerHDF5PushGroup(viewer, "/grainSizeEv/wattmeter");      CHKERRQ(ierr);
