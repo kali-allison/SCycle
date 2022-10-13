@@ -25,7 +25,7 @@ GrainSizeEvolution::GrainSizeEvolution(Domain& D)
   setMaterialParameters();
 
   if (_D->_restartFromChkpt) { loadCheckpoint(); }
-  if (_D->_restartFromChkptSS) { loadCheckpointSS(); }
+  else if (_D->_restartFromChkptSS) { loadCheckpointSS(); }
   else { loadFieldsFromFiles(); }
 
   #if VERBOSE > 1
