@@ -538,7 +538,7 @@ double startTime = MPI_Wtime();
     ierr = _he->writeCheckpoint(_viewer_chkpt);                         CHKERRQ(ierr);
     if (_quadEx != NULL) { ierr = _quadEx->writeCheckpoint(_viewer_chkpt); CHKERRQ(ierr); }
     if (_quadImex != NULL) { ierr = _quadImex->writeCheckpoint(_viewer_chkpt); CHKERRQ(ierr); }
-    if (_grainDist != NULL) { ierr =  _grainDist->writeStep(_viewer2D);CHKERRQ(ierr); }
+    if (_grainDist != NULL) { ierr =  _grainDist->writeStep(_viewer_chkpt);CHKERRQ(ierr); }
     if (_hydraulicCoupling.compare("no")!=0) { ierr = _p->writeCheckpoint(_viewer_chkpt);  CHKERRQ(ierr); }
   }
 
