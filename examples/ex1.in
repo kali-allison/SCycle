@@ -1,9 +1,6 @@
 # Example input file for  a quasidynamic earthquake cycle simulation for a spring slider
 # with linear elastic off-fault material.
 
-# Example input file for  a quasidynamic earthquake cycle simulation for a spring slider
-# with linear elastic off-fault material.
-
 #======================================================================
 # define the domain and problem type
 
