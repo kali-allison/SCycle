@@ -262,7 +262,6 @@ PetscErrorCode GrainSizeEvolution::loadFieldsFromFiles()
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);
   #endif
-PetscPrintf(PETSC_COMM_WORLD,"running GrainSizeEvolution::loadFieldsFromFiles\n");
 
   ierr = loadVecFromInputFile(_d,_inputDir,"grainSizeEv_d"); CHKERRQ(ierr);
   ierr = loadVecFromInputFile(_d_t,_inputDir,"grainSizeEv_d_t"); CHKERRQ(ierr);

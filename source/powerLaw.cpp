@@ -1163,8 +1163,6 @@ PetscErrorCode PowerLaw::loadFieldsFromFiles()
     CHKERRQ(ierr);
   #endif
 
-  PetscPrintf(PETSC_COMM_WORLD,"running PowerLaw::loadFieldsFromFiles\n");
-
   // load bcL and bcR
   ierr = loadVecFromInputFile(_bcL,_inputDir,"momBal_bcL"); CHKERRQ(ierr);
   ierr = loadVecFromInputFile(_bcRShift,_inputDir,"momBal_bcR"); CHKERRQ(ierr);
