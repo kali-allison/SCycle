@@ -729,7 +729,6 @@ PetscErrorCode GrainSizeEvolution::loadCheckpoint()
   ierr = VecLoad(_f, viewer);                                           CHKERRQ(ierr);
   ierr = VecLoad(_d, viewer);                                           CHKERRQ(ierr);
   ierr = VecLoad(_d_t, viewer);                                         CHKERRQ(ierr);
-  ierr = PetscViewerHDF5PopTimestepping(viewer);                        CHKERRQ(ierr);
   ierr = PetscViewerHDF5PopGroup(viewer);                               CHKERRQ(ierr);
 
   PetscViewerDestroy(&viewer);
