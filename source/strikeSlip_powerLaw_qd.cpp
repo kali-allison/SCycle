@@ -43,6 +43,8 @@ StrikeSlip_PowerLaw_qd::StrikeSlip_PowerLaw_qd(Domain&D)
   parseBCs();
   allocateFields();
 
+  PetscPrintf(PETSC_COMM_WORLD,"_D->_restartFromChkpt = %i, _D->_restartFromChkptSS = %i\n",_D->_restartFromChkpt,_D->_restartFromChkptSS);
+
   if (_D->_restartFromChkpt) {
     loadCheckpoint();
     _guessSteadyStateICs = 0;

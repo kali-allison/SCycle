@@ -681,11 +681,10 @@ PetscErrorCode GrainSizeEvolution::writeCheckpoint(PetscViewer& viewer)
     ierr = PetscViewerHDF5PopGroup(viewer);                             CHKERRQ(ierr);
   }
 
-  ierr = PetscViewerHDF5PushGroup(viewer, "/grainSizeEv");               CHKERRQ(ierr);
+  ierr = PetscViewerHDF5PushGroup(viewer, "/grainSizeEv");              CHKERRQ(ierr);
   ierr = VecView(_f, viewer);                                           CHKERRQ(ierr);
   ierr = VecView(_d, viewer);                                           CHKERRQ(ierr);
   ierr = VecView(_d_t, viewer);                                         CHKERRQ(ierr);
-  ierr = PetscViewerHDF5PopTimestepping(viewer);                        CHKERRQ(ierr);
   ierr = PetscViewerHDF5PopGroup(viewer);                               CHKERRQ(ierr);
 
   #if VERBOSE > 1
