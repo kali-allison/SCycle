@@ -777,7 +777,7 @@ double startTime = MPI_Wtime();
     if (_quadEx_qd != NULL && !_inDynamic) { ierr = _quadEx_qd->writeCheckpoint(_viewer_chkpt); CHKERRQ(ierr); }
     if (_quadImex_qd != NULL && !_inDynamic) { ierr = _quadImex_qd->writeCheckpoint(_viewer_chkpt); CHKERRQ(ierr); }
     if (_quadWaveEx != NULL && _inDynamic) { ierr = _quadWaveEx->writeCheckpoint(_viewer_chkpt); CHKERRQ(ierr); }
-    if (_evolveGrainSize == 1) { ierr = _grainDist->writeStep(_viewer_chkpt);CHKERRQ(ierr); }
+    if (_evolveGrainSize == 1) { ierr = _grainDist->writeCheckpoint(_viewer_chkpt);CHKERRQ(ierr); }
     if (_hydraulicCoupling != "no") { ierr = _p->writeCheckpoint(_viewer_chkpt);  CHKERRQ(ierr); }
   }
 
