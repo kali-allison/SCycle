@@ -664,9 +664,6 @@ PetscErrorCode GrainSizeEvolution::writeCheckpoint(PetscViewer& viewer)
     CHKERRQ(ierr);
   #endif
 
-  ierr = PetscViewerHDF5PushGroup(viewer, "/grainSizeEv");               CHKERRQ(ierr);
-
-  ierr = VecView(_f, viewer);                                           CHKERRQ(ierr);
   if (_grainSizeEvType=="transient" || _grainSizeEvType=="steadyState" || _grainSizeEvType=="constant" ||
     _grainSizeEvTypeSS=="transient" ||  _grainSizeEvTypeSS=="steadyState" ||  _grainSizeEvTypeSS=="constant") {
     ierr = PetscViewerHDF5PushGroup(viewer, "/grainSizeEv/wattmeter");      CHKERRQ(ierr);
@@ -683,6 +680,8 @@ PetscErrorCode GrainSizeEvolution::writeCheckpoint(PetscViewer& viewer)
     ierr = PetscViewerHDF5PopGroup(viewer);                             CHKERRQ(ierr);
   }
 
+  ierr = PetscViewerHDF5PushGroup(viewer, "/grainSizeEv");               CHKERRQ(ierr);
+  ierr = VecView(_f, viewer);                                           CHKERRQ(ierr);
   ierr = VecView(_d, viewer);                                           CHKERRQ(ierr);
   ierr = VecView(_d_t, viewer);                                         CHKERRQ(ierr);
   ierr = PetscViewerHDF5PopTimestepping(viewer);                        CHKERRQ(ierr);
