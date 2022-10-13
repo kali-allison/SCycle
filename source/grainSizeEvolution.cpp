@@ -26,7 +26,7 @@ GrainSizeEvolution::GrainSizeEvolution(Domain& D)
 
   if (_D->_restartFromChkpt) { loadCheckpoint(); }
   if (_D->_restartFromChkptSS) { loadCheckpointSS(); }
-  else { loadFieldsFromFiles(); }
+  else { assert(0); loadFieldsFromFiles(); }
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);

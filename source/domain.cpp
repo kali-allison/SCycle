@@ -548,7 +548,7 @@ PetscErrorCode Domain::loadCheckpoint()
   else {
     _restartFromChkpt = 0;
     _outputFileMode = FILE_MODE_WRITE;
-    PetscPrintf(PETSC_COMM_WORLD,"Not: not restarting from previous checkpoint.\n\n");
+    PetscPrintf(PETSC_COMM_WORLD,"Note: not restarting from previous checkpoint.\n\n");
   }
 
   #if VERBOSE > 1
@@ -593,7 +593,7 @@ PetscErrorCode Domain::loadCheckpointSS()
   else {
     _restartFromChkptSS = 0;
     _outputFileMode = FILE_MODE_WRITE;
-    PetscPrintf(PETSC_COMM_WORLD,"Not: not restarting from previous steady-state iteration.\n\n");
+    PetscPrintf(PETSC_COMM_WORLD,"Note: not restarting from previous steady-state iteration.\n\n");
   }
 
   #if VERBOSE > 1
