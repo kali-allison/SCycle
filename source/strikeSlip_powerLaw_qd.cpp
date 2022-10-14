@@ -510,7 +510,7 @@ double startTime = MPI_Wtime();
   _stepCount = stepCount;
   _deltaT = deltaT;
   _currTime = time;
-    VecSet(_time1DVec,time);
+  VecSet(_time1DVec,time);
   VecSet(_dtime1DVec,_deltaT);
   VecSet(_time2DVec,time);
   VecSet(_dtime2DVec,_deltaT);
@@ -1017,17 +1017,17 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::d_dt(const PetscScalar time,const map<str
     ierr = _fault->d_dt(time,varEx,dvarEx); // sets rates for slip and state
 
 
-    // impose ceiling on fault velocity: slipVel <= vL
-    PetscScalar *V;
-    ierr = VecGetArray(_fault->_slipVel,&V);
-    PetscInt Kk = 0; // local array index
-    PetscInt Istart, Iend;
-    ierr = VecGetOwnershipRange(_fault->_slipVel,&Istart,&Iend); // local portion of global Vec index
-    for (PetscInt Ii = Istart; Ii < Iend; Ii++) {
-      V[Kk] = min(V[Kk],_vL);
-      Kk++;
-    }
-    VecRestoreArray(_fault->_slipVel,&V);
+    //~ // impose ceiling on fault velocity: slipVel <= vL
+    //~ PetscScalar *V;
+    //~ ierr = VecGetArray(_fault->_slipVel,&V);
+    //~ PetscInt Kk = 0; // local array index
+    //~ PetscInt Istart, Iend;
+    //~ ierr = VecGetOwnershipRange(_fault->_slipVel,&Istart,&Iend); // local portion of global Vec index
+    //~ for (PetscInt Ii = Istart; Ii < Iend; Ii++) {
+      //~ V[Kk] = min(V[Kk],_vL);
+      //~ Kk++;
+    //~ }
+    //~ VecRestoreArray(_fault->_slipVel,&V);
 
     // compute frictional strength of fault based on updated slip velocity
     ierr = strength_psi_Vec(_fault->_strength, _fault->_psi, _fault->_slipVel, _fault->_a, _fault->_sNEff, _fault->_v0); CHKERRQ(ierr);
