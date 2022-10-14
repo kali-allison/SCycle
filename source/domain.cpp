@@ -544,6 +544,15 @@ PetscErrorCode Domain::loadCheckpoint()
     ierr = PetscViewerHDF5PopGroup(viewer_prev_checkpoint);               CHKERRQ(ierr);
 
     PetscViewerDestroy(&viewer_prev_checkpoint);
+
+    // check if data_1D and data_2D exist
+    fileName = _outputDir + "data_1D.h5";
+  fileExists = doesFileExist(fileName);
+  if (!fileExists) {_prevChkptTimeStep1D = 0;};
+
+  fileName = _outputDir + "data_2D.h5";
+  fileExists = doesFileExist(fileName);
+  if (!fileExists) {_prevChkptTimeStep2D = 0;};
   }
   else {
     _restartFromChkpt = 0;
