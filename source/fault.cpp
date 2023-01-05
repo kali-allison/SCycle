@@ -952,7 +952,7 @@ PetscErrorCode Fault_qd::d_dt(const PetscScalar time, const map<string,Vec>& var
     CHKERRQ(ierr);
   }
   else if (_stateLaw.compare("constantState") == 0) {
-    VecSet(dstate,0.);assert(0);
+    VecSet(dstate,0.);
   }
   else {
     PetscPrintf(PETSC_COMM_WORLD,"_stateLaw not understood!\n");
