@@ -515,6 +515,7 @@ PetscErrorCode DislocationCreep::computeInvEffVisc(const Vec& Temp,const Vec& sd
   VecGetArray(_invEffVisc,&invEffVisc);
   PetscInt Jj = 0;
   for (Ii=Istart;Ii<Iend;Ii++) {
+    assert(!std::isnan(s[Jj]));
     invEffVisc[Jj] = 1e3 * A[Jj] * pow(s[Jj],n[Jj]-1.0) * exp(-B[Jj]/T[Jj]);
     Jj++;
   }
@@ -816,6 +817,8 @@ PetscErrorCode DiffusionCreep::computeInvEffVisc(const Vec& Temp,const Vec& sdev
   VecGetArray(_invEffVisc,&invEffVisc);
   PetscInt Jj = 0;
   for (Ii=Istart;Ii<Iend;Ii++) {
+    assert(!std::isnan(d[Jj]));
+    assert(!std::isnan(s[Jj]));
     invEffVisc[Jj] = 1e3 * A[Jj] * pow(s[Jj],n[Jj]-1.0) * exp(-B[Jj]/T[Jj]) * pow(d[Jj],-m[Jj]);
     Jj++;
   }
