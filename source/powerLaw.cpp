@@ -2226,16 +2226,22 @@ PetscErrorCode PowerLaw::updateSSa(map<string,Vec>& varSS)
 
   // solve for steady-state velocity
   ierr = KSPSolve(_ksp_eta,_rhs,varSS["v"]);CHKERRQ(ierr);
+  ierr = anyIsnan(varSS["v"], "varSS[v]");CHKERRQ(ierr);
 
   // update viscous strain rates
   _sbp_eta->Dy(varSS["v"],varSS["dgVxy"]);
   _sbp_eta->Dz(varSS["v"],varSS["dgVxz"]);
   VecCopy(varSS["dgVxy"],_dgVxy);
   VecCopy(varSS["dgVxz"],_dgVxz);
+  ierr = anyIsnan(varSS["dgVxy"], "varSS[dgVxy]");CHKERRQ(ierr);
+  ierr = anyIsnan(varSS["dgVxz"], "varSS[dgVxz]");CHKERRQ(ierr);
 
   // update stresses
   ierr = VecPointwiseMult(_sxy,_effVisc,varSS["dgVxy"]);
   ierr = VecPointwiseMult(_sxz,_effVisc,varSS["dgVxz"]);
+  ierr = anyIsnan(_sxy, "sxy");CHKERRQ(ierr);
+  ierr = anyIsnan(_sxz, "sxz");CHKERRQ(ierr);
+
   ierr = computeSDev(); CHKERRQ(ierr); // deviatoric stress
   ierr = computeDevViscStrainRates(); CHKERRQ(ierr); // deviatoric strain rate
 
