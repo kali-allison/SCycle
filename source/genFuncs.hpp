@@ -49,6 +49,9 @@ void printVecsSum(Vec vec1,Vec vec2);
 // check that a Vec contains no inf or NaN values
 double anyIsnan(const Vec& vec, string str);
 
+// if Vec contains no inf or NaN values, change them to newVal
+double changeAnyIsnan(Vec& vec, string str, float newVal);
+
 // write a single vector to file in HDF5 format
 PetscErrorCode writeVec_hdf5(Vec vec, const string outFileName, const string group, const string objectName);
 

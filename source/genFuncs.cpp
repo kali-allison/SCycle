@@ -97,6 +97,30 @@ double anyIsnan(const Vec& vec, string str)
   return ierr;
 }
 
+// check that a Vec contains no inf or NaN values
+double changeAnyIsnan(Vec& vec, string str, float newVal)
+{
+  PetscErrorCode ierr = 0;
+
+  PetscScalar *val;
+  PetscInt Istart, Iend;
+  VecGetOwnershipRange(vec,&Istart,&Iend);
+  VecGetArray(vec,&val);
+  PetscInt Jj = 0;
+  for (PetscInt Ii=Istart;Ii<Iend;Ii++) {
+    if (isnan(val[Jj]) || isinf(val[Jj])) {
+      PetscPrintf(PETSC_COMM_WORLD,str.c_str());
+      val[Jj] = newVal;
+      //~ assert(!isnan(val[Jj]));
+      //~ assert(!isinf(val[Jj]));
+    }
+    Jj++;
+  }
+  VecRestoreArray(vec,&val);
+
+  return ierr;
+}
+
 // write a single vector to file in HDF5 format
 PetscErrorCode writeVec_hdf5(Vec vec, const string outFileName, const string group, const string objectName)
 {

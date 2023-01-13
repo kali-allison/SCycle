@@ -2226,7 +2226,7 @@ PetscErrorCode PowerLaw::updateSSa(map<string,Vec>& varSS)
 
   // solve for steady-state velocity
   ierr = KSPSolve(_ksp_eta,_rhs,varSS["v"]);CHKERRQ(ierr);
-  ierr = anyIsnan(varSS["v"], "varSS[v]");CHKERRQ(ierr);
+  ierr = changeAnyIsnan(varSS["v"], "varSS[v]",_D->_vL);CHKERRQ(ierr);
 
   // update viscous strain rates
   _sbp_eta->Dy(varSS["v"],varSS["dgVxy"]);
