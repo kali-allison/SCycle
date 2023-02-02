@@ -1281,7 +1281,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::updateBCT_atan_v()
 
   VecDestroy(&yT);
 
-  #if VERBOSE > 3
+  #if VERBOSE > 2
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
