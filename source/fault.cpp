@@ -8,7 +8,7 @@ using namespace std;
 Fault::Fault(Domain &D, VecScatter& scatter2fault, const int& faultTypeScale)
   : _D(&D),_inputFile(D._file),_delim(D._delim),
     _inputDir(D._inputDir),_outputDir(D._outputDir),
-    _stateLaw("agingLaw"),_faultTypeScale(faultTypeScale),
+    _stateLaw("agingLaw"),_faultTypeScale(faultTypeScale),_limitSlipVel(0),
     _N(D._Nz),_L(D._Lz),
     _prestressScalar(0.),
     _f0(0.6),_v0(1e-6),
@@ -105,6 +105,8 @@ PetscErrorCode Fault::loadSettings(const char *file)
     // for locking part of the fault
     else if (var.compare("lockedVals")==0) { loadVectorFromInputFile(rhsFull,_lockedVals); }
     else if (var.compare("lockedDepths")==0) { loadVectorFromInputFile(rhsFull,_lockedDepths); }
+
+    else if (var.compare("limitSlipVel")==0) { _limitSlipVel = atoi( rhs.c_str() ); }
   }
 
   #if VERBOSE > 1
@@ -466,6 +468,35 @@ PetscErrorCode Fault::setSNEff(const Vec& p)
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME); CHKERRQ(ierr);
   #endif
 
+  return ierr;
+}
+
+
+
+PetscErrorCode Fault::imposeSlipVelCeiling()
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    string funcName = "Fault::imposeSlipVelCeiling";
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+    CHKERRQ(ierr);
+  #endif
+
+  PetscScalar *slipVel;
+  PetscInt Ii,Istart,Iend;
+  VecGetOwnershipRange(_slipVel,&Istart,&Iend);
+  VecGetArray(_slipVel,&slipVel);
+  PetscInt Jj = 0;
+  for (Ii=Istart;Ii<Iend;Ii++) {
+    slipVel[Jj] = max(slipVel[Jj],_D->_vL);
+    Jj++;
+  }
+  VecRestoreArray(_slipVel,&slipVel);
+
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+    CHKERRQ(ierr);
+  #endif
   return ierr;
 }
 
@@ -899,6 +930,9 @@ PetscErrorCode Fault_qd::computeVel()
   ComputeVel_qd temp(N,etaA,tauQSA,sNA,psiA,aA,bA,_v0,_D->_vL,lockedA,Co);
   ierr = temp.computeVel(slipVelA, _rootTol, _rootIts, _maxNumIts); CHKERRQ(ierr);
 
+  // now limit slipVel to <= vL if desired
+  if (_limitSlipVel) { imposeSlipVelCeiling(); }
+
   ierr = VecRestoreArray(_slipVel,&slipVelA); CHKERRQ(ierr);
   ierr = VecRestoreArrayRead(_eta_rad,&etaA); CHKERRQ(ierr);
   ierr = VecRestoreArrayRead(_tauQSP,&tauQSA); CHKERRQ(ierr);
@@ -1201,31 +1235,31 @@ PetscErrorCode ComputeVel_qd::computeVel(PetscScalar *slipVelA, const PetscScala
 
       // check bounds
       if (std::isnan(left)) {
-  PetscPrintf(PETSC_COMM_WORLD,"\n\nError in ComputeVel_qd::computeVel: left bound evaluated to NaN.\n");
-  PetscPrintf(PETSC_COMM_WORLD,"tauQS = %g, eta = %g, left = %g\n",_tauQS[Jj],_eta[Jj],left);
-  assert(0);
+        PetscPrintf(PETSC_COMM_WORLD,"\n\nError in ComputeVel_qd::computeVel: left bound evaluated to NaN.\n");
+        PetscPrintf(PETSC_COMM_WORLD,"tauQS = %g, eta = %g, left = %g\n",_tauQS[Jj],_eta[Jj],left);
+        assert(0);
       }
       if (std::isnan(right)) {
-  PetscPrintf(PETSC_COMM_WORLD,"\n\nError in ComputeVel_qd::computeVel: right bound evaluated to NaN.\n");
-  PetscPrintf(PETSC_COMM_WORLD,"tauQS = %g, eta = %g, right = %g\n",_tauQS[Jj],_eta[Jj],right);
-  assert(0);
+        PetscPrintf(PETSC_COMM_WORLD,"\n\nError in ComputeVel_qd::computeVel: right bound evaluated to NaN.\n");
+        PetscPrintf(PETSC_COMM_WORLD,"tauQS = %g, eta = %g, right = %g\n",_tauQS[Jj],_eta[Jj],right);
+        assert(0);
       }
 
       out = slipVelA[Jj];
 
       if (abs(left-right)<1e-14) {
-  out = left;
+        out = left;
       }
       else {
-  //Bisect rootFinder(maxNumIts,rootTol);
-        //ierr = rootFinder.setBounds(left,right); CHKERRQ(ierr);
-  //ierr = rootFinder.findRoot(this,Jj,&out); assert(ierr == 0); CHKERRQ(ierr);
-  //rootIts += rootFinder.getNumIts();
-  PetscScalar x0 = slipVelA[Jj];
-  BracketedNewton rootFinder(maxNumIts,rootTol);
-  ierr = rootFinder.setBounds(left,right);CHKERRQ(ierr);
-  ierr = rootFinder.findRoot(this,Jj,x0,&out); CHKERRQ(ierr);
-  rootIts += rootFinder.getNumIts();
+        //Bisect rootFinder(maxNumIts,rootTol);
+              //ierr = rootFinder.setBounds(left,right); CHKERRQ(ierr);
+        //ierr = rootFinder.findRoot(this,Jj,&out); assert(ierr == 0); CHKERRQ(ierr);
+        //rootIts += rootFinder.getNumIts();
+        PetscScalar x0 = slipVelA[Jj];
+        BracketedNewton rootFinder(maxNumIts,rootTol);
+        ierr = rootFinder.setBounds(left,right);CHKERRQ(ierr);
+        ierr = rootFinder.findRoot(this,Jj,x0,&out); CHKERRQ(ierr);
+        rootIts += rootFinder.getNumIts();
       }
       slipVelA[Jj] = out;
     }

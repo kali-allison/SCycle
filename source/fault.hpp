@@ -51,6 +51,7 @@ public:
   string       _outputDir; // directory for output
   string       _stateLaw; // state evolution law
   PetscScalar  _faultTypeScale; // = 2 if symmetric fault, 1 if one side of fault is rigid
+  PetscInt     _limitSlipVel; // if 0 no ceiling, if yes then slipVel limited to <= vL
 
   // domain properties
   const PetscInt     _N;  //number of nodes on fault
@@ -120,6 +121,7 @@ public:
 
   PetscErrorCode setSNEff(const Vec& p); // update effective normal stress to reflect new pore pressure
   PetscErrorCode setSN(const Vec& p); // update effective normal stress to reflect new pore pressure
+  PetscErrorCode imposeSlipVelCeiling(); // if desired, limit slipVel to less than vL
 
   // for steady state computations
   PetscErrorCode guessSS(const PetscScalar vL);
