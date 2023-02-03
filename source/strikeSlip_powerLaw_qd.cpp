@@ -1503,41 +1503,41 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::solveSSViscoelasticProblem(const PetscInt
   Mat A;
   _material->_sbp->getA(A);
   _material->setupKSP(_material->_ksp,_material->_pc,A,_material->_linSolverSS);
-PetscPrintf(PETSC_COMM_WORLD,"powerLaw_qd: line 1506\n");
+
   // set up rhs vector containing boundary condition data
-  VecCopy(_varSS["tau"],_material->_bcL); PetscPrintf(PETSC_COMM_WORLD,"powerLaw_qd: line 1508\n");
-  VecSet(_material->_bcR,_vL/2.);PetscPrintf(PETSC_COMM_WORLD,"powerLaw_qd: line 1509\n");
-  string  _mat_bcTType_SS = "Neumann";PetscPrintf(PETSC_COMM_WORLD,"powerLaw_qd: line 1510\n");
+  VecCopy(_varSS["tau"],_material->_bcL);
+  VecSet(_material->_bcR,_vL/2.);
+  string  _mat_bcTType_SS = "Neumann";
   if (_bcTType == "atan_u") {
-    updateBCT_atan_v();PetscPrintf(PETSC_COMM_WORLD,"powerLaw_qd: line 1512\n");
-    _mat_bcTType_SS = "Dirichlet";PetscPrintf(PETSC_COMM_WORLD,"powerLaw_qd: line 1513\n");
+    updateBCT_atan_v();
+    _mat_bcTType_SS = "Dirichlet";
   }
 
   // loop over effective viscosity
-  Vec effVisc_old; VecDuplicate(_varSS["effVisc"],&effVisc_old);PetscPrintf(PETSC_COMM_WORLD,"powerLaw_qd: line 1517\n");
+  Vec effVisc_old; VecDuplicate(_varSS["effVisc"],&effVisc_old);
 
-  Vec temp; VecDuplicate(_varSS["effVisc"],&temp); VecSet(temp,0.);PetscPrintf(PETSC_COMM_WORLD,"powerLaw_qd: line 1519\n");
-  double err = 1e10;PetscPrintf(PETSC_COMM_WORLD,"powerLaw_qd: line 1520\n");
-  int Ii = 0;PetscPrintf(PETSC_COMM_WORLD,"powerLaw_qd: line 1521\n");
+  Vec temp; VecDuplicate(_varSS["effVisc"],&temp); VecSet(temp,0.);
+  double err = 1e10;
+  int Ii = 0;
   while (Ii < _maxSSIts_effVisc && err >= _atolSS_effVisc) {
-    VecCopy(_varSS["effVisc"],effVisc_old);PetscPrintf(PETSC_COMM_WORLD,"powerLaw_qd: line 1523\n");
+    VecCopy(_varSS["effVisc"],effVisc_old);
 
-    _material->setSSRHS(_varSS,"Dirichlet",_mat_bcTType_SS,"Neumann","Neumann");PetscPrintf(PETSC_COMM_WORLD,"powerLaw_qd: line 1525\n");
+    _material->setSSRHS(_varSS,"Dirichlet",_mat_bcTType_SS,"Neumann","Neumann");P
     _material->updateSSa(_varSS); // compute v, viscous strain rates
-PetscPrintf(PETSC_COMM_WORLD,"powerLaw_qd: line 1527\n");
+
     // update grain size
     if (_computeSSGrainSize == 1) { solveSSGrainSize(Jj); }
     if (_grainSizeEvCoupling == "coupled") { _material->updateGrainSize(_varSS["grainSize"]); }
-PetscPrintf(PETSC_COMM_WORLD,"powerLaw_qd: line 1530\n");
+
     _material->computeViscosity(_material->_effViscCap); // new viscosity
-PetscPrintf(PETSC_COMM_WORLD,"powerLaw_qd: line 1533\n");
+
     // update effective viscosity: log10(accepted viscosity) = (1-f)*log10(old viscosity) + f*log10(new viscosity):
-    MyVecLog10AXPBY(temp,1.-_fss_EffVisc,effVisc_old,_fss_EffVisc,_varSS["effVisc"]);PetscPrintf(PETSC_COMM_WORLD,"powerLaw_qd: line 1535\n");
-    VecCopy(temp,_varSS["effVisc"]);PetscPrintf(PETSC_COMM_WORLD,"powerLaw_qd: line 1536\n");
+    MyVecLog10AXPBY(temp,1.-_fss_EffVisc,effVisc_old,_fss_EffVisc,_varSS["effVisc"]);
+    VecCopy(temp,_varSS["effVisc"]);
 
     // evaluate convergence of this iteration
     err = computeMaxDiff_scaleVec1(effVisc_old,_varSS["effVisc"]); // total eff visc
-PetscPrintf(PETSC_COMM_WORLD,"powerLaw_qd: line 1540\n");
+
     PetscPrintf(PETSC_COMM_WORLD,"    effective viscosity loop: %i %e\n",Ii,err);
     Ii++;
   }
