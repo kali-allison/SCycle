@@ -1409,6 +1409,18 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::solveSS(const PetscInt Jj)
   guessTauSS(_varSS);
   solveSSViscoelasticProblem(Jj); // converge to steady state eta etc
 
+  // impose ceiling on fault velocity: slipVel <= vL
+  PetscScalar *V;
+  VecGetArray(_fault->_slipVel,&V);
+  PetscInt Kk = 0; // local array index
+  PetscInt Istart, Iend;
+  ierr = VecGetOwnershipRange(_fault->_slipVel,&Istart,&Iend); // local portion of global Vec index
+  for (PetscInt Ii = Istart; Ii < Iend; Ii++) {
+    V[Kk] = min(V[Kk],_vL);
+    Kk++;
+  }
+  VecRestoreArray(_fault->_slipVel,&V);
+
   if (_computeSSTemperature == 1) { solveSSHeatEquation(Jj); }
   if (_thermalCoupling == "coupled") {
       _material->updateTemperature(_varSS["Temp"]);
