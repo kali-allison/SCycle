@@ -1338,6 +1338,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::guessTauSS(map<string,Vec>& varSS)
 
   // if steady-state shear stress not provided: tauSS = min(tauRS,tauVisc)
   if (loadTauSS == 0) {
+    PetscPrintf(PETSC_COMM_WORLD,"\n\n Note: didn't find tauSS and am constructing it\n\n");
     // viscous strength of material, evaluated only at fault
     Vec tauVisc = NULL;
     VecDuplicate(_fault->_tauP,&tauVisc);
@@ -1350,6 +1351,18 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::guessTauSS(map<string,Vec>& varSS)
   }
   VecCopy(_fault->_tauP,_fault->_tauQSP);
   _fault->computeVel();
+
+  // impose ceiling on fault velocity: slipVel <= vL
+  PetscScalar *V;
+  VecGetArray(_fault->_slipVel,&V);
+  PetscInt Kk = 0; // local array index
+  PetscInt Istart, Iend;
+  ierr = VecGetOwnershipRange(_fault->_slipVel,&Istart,&Iend); // local portion of global Vec index
+  for (PetscInt Ii = Istart; Ii < Iend; Ii++) {
+    V[Kk] = min(V[Kk],_vL);
+    Kk++;
+  }
+  VecRestoreArray(_fault->_slipVel,&V);
 
   #if VERBOSE > 1
      PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -1408,18 +1421,6 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::solveSS(const PetscInt Jj)
   // estimate steady-state shear stress at y = 0
   guessTauSS(_varSS);
   solveSSViscoelasticProblem(Jj); // converge to steady state eta etc
-
-  // impose ceiling on fault velocity: slipVel <= vL
-  PetscScalar *V;
-  VecGetArray(_fault->_slipVel,&V);
-  PetscInt Kk = 0; // local array index
-  PetscInt Istart, Iend;
-  ierr = VecGetOwnershipRange(_fault->_slipVel,&Istart,&Iend); // local portion of global Vec index
-  for (PetscInt Ii = Istart; Ii < Iend; Ii++) {
-    V[Kk] = min(V[Kk],_vL);
-    Kk++;
-  }
-  VecRestoreArray(_fault->_slipVel,&V);
 
   if (_computeSSTemperature == 1) { solveSSHeatEquation(Jj); }
   if (_thermalCoupling == "coupled") {
