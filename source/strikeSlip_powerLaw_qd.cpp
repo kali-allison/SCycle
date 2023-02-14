@@ -1540,7 +1540,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::solveSSViscoelasticProblem(const PetscInt
 
     // update grain size
     if (_computeSSGrainSize == 1) { solveSSGrainSize(Jj); }
-    if (_grainSizeEvCoupling == "coupled") { _material->updateGrainSize(_varSS["grainSize"]); }
+    if (_grainSizeEvCoupling == "coupled" && _computeSSGrainSize == 1) { _material->updateGrainSize(_varSS["grainSize"]); }
 
     _material->computeViscosity(_material->_effViscCap); // new viscosity
 
