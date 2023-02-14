@@ -488,7 +488,7 @@ PetscErrorCode Fault::imposeSlipVelCeiling()
   VecGetArray(_slipVel,&slipVel);
   PetscInt Jj = 0;
   for (Ii=Istart;Ii<Iend;Ii++) {
-    slipVel[Jj] = max(slipVel[Jj],_D->_vL);
+    slipVel[Jj] = min(slipVel[Jj],_D->_vL);
     Jj++;
   }
   VecRestoreArray(_slipVel,&slipVel);
