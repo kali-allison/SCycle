@@ -844,6 +844,8 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::writeContext()
   ierr = PetscViewerASCIIPrintf(viewer,"evolveGrainSize = %i\n",_evolveGrainSize);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"computeSSHeatEq = %i\n",_computeSSTemperature);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"computeSSGrainSize = %i\n",_computeSSGrainSize);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"strideChkpt = %i\n",_strideChkpt);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"_D->_saveChkpts = %i\n",_D->_saveChkpts);CHKERRQ(ierr);
 
   ierr = PetscViewerASCIIPrintf(viewer,"timeIntInds = %s\n",vector2str(_timeIntInds).c_str());CHKERRQ(ierr);
   if (_scale.size() > 0) {
