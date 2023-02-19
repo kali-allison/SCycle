@@ -36,8 +36,10 @@ SbpOps_m_varGrid::SbpOps_m_varGrid(const int order,const PetscInt Ny,const Petsc
     _h11z = 0.5 * _dz;
   }
   else if (_order == 4) {
-    _alphaDy = 2.0*-48.0/17.0 /_dy;
-    _alphaDz = 2.0*-48.0/17.0 /_dz;
+    //~ _alphaDy = 2.0*-48.0/17.0 /_dy; // original
+    //~ _alphaDz = 2.0*-48.0/17.0 /_dz; // original
+    _alphaDy = 4.0*-48.0/17.0 /_dy;
+    _alphaDz = 4.0*-48.0/17.0 /_dz;
     _h11y = 17.0/48.0 * _dy;
     _h11z = 17.0/48.0 * _dz;
   }

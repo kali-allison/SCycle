@@ -1825,7 +1825,7 @@ PetscErrorCode PowerLaw::computeViscStrainRates(const PetscScalar time)
   ierr = computeViscousStrainRateSAT(_u,_bcL,_bcR,SAT); CHKERRQ(ierr);
 
   // d/dt gxy = sxy/visc + qy*mu/visc*SAT
-  //~ VecSet(SAT,0.); // !!! Just for testing purposes
+  VecSet(SAT,0.); // !!! Just for testing purposes
   VecSet(_dgVxy,0.);
   VecPointwiseMult(_dgVxy,_mu,SAT);
   VecAXPY(_dgVxy,1.0,_sxy);
