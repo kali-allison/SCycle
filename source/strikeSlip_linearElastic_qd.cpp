@@ -496,6 +496,7 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::timeMonitor(PetscScalar time, PetscS
     if (_quadImex != NULL) { ierr = _quadImex->writeCheckpoint(_viewer_chkpt); CHKERRQ(ierr); }
     if (_hydraulicCoupling.compare("no")!=0) { ierr = _p->writeCheckpoint(_viewer_chkpt);  CHKERRQ(ierr); }
     if (_thermalCoupling.compare("no")!=0) { ierr = _he->writeCheckpoint(_viewer_chkpt); CHKERRQ(ierr); }
+    ierr = PetscViewerFlush(_viewer_chkpt); CHKERRQ(ierr);
   }
 
   _writeTime += MPI_Wtime() - startTime;

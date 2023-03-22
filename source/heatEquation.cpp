@@ -18,7 +18,7 @@ HeatEquation::HeatEquation(Domain& D)
   _I(NULL),_rcInv(NULL),_B(NULL),_pcMat(NULL),_D2ath(NULL),
   _MapV(NULL),_Gw(NULL),_w(NULL),
   _linSolveTime(0),_factorTime(0),_beTime(0),_writeTime(0),_miscTime(0),
-  _linSolveCount(0),_ckpt(D._ckpt),_ckptNumber(D._ckptNumber),
+  _linSolveCount(0),
   _Tamb(NULL),_dT(NULL),_T(NULL),
   _k(NULL),_rho(NULL),_c(NULL),_Qrad(NULL),_Qfric(NULL),_Qvisc(NULL),_Q(NULL)
 {

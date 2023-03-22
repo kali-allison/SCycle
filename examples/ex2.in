@@ -6,15 +6,16 @@
 
 # set up the computational domain
 Ny = 151 # points in y-direction
-Nz = 151 # points in z-direction
+Nz = 153 # points in z-direction
 Ly = 100 # (km) horizontal domain size
 Lz = 30 # (km) vertical domain size
 vL = 1e-9 # (m/s) loading velocity
 bCoordTrans = 5 # controls grid stretching perpendicular to the fault: larger b means more grid stretching
 
 # specify what problem to simulate
+systemEvolutionType = transient # solve for steady-state or time evolution of the system
 bulkDeformationType = linearElastic # off-fault constitutive law
-momentumBalanceType = quasidynamic # form of the momentum balance equation
+#momentumBalanceType = quasidynamic # form of the momentum balance equation
 guessSteadyStateICs = 1 # estimate steady-state initial conditions
 
 #=======================================================================
@@ -49,14 +50,18 @@ rhoDepths = [0 60] # (km)
 
 timeIntegrator = RK43
 stride1D = 5 # number of time steps between output of 1D fields
-stride2D = 5 # number of time steps between output of 2D fields
-maxStepCount = 1e8
+stride2D = 20 # number of time steps between output of 2D fields
+maxStepCount = 5e3
 initTime = 0 # (s) initial time
-maxTime = 3e10 # (s) final time
+maxTime = 6.5304e9 # (s) final time
 timeStepTol = 1e-7 # absolute tolerance for time integration
 timeIntInds = [psi slip] # variables to use to compute time step
-
 
 # directory for output
 outputDir = data/ex2_
 
+# settings for checkpoints
+saveChkpts = 1 # enable checkpointing if 1, disable if 0
+restartFromChkpt = 1 # allow to restart from previous checkpoint if 1, ignore previous checkpoint if 0
+retartFromChkptSS = 1 # allow to restart from previous checkpoint if 1, ignore previous checkpoint if 0
+strideChkpt = 50 # time step interval at which to write checkpoint files

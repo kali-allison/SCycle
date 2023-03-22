@@ -229,7 +229,7 @@ PetscErrorCode FEuler::writeCheckpoint(PetscViewer &viewer)
 
   ierr = PetscViewerHDF5PushGroup(viewer, "/odeSolver");        CHKERRQ(ierr);
   ierr = VecView(temp, viewer);                                         CHKERRQ(ierr);
-    ierr = PetscViewerHDF5WriteAttribute(viewer, "odeSolver_chkpt_data", "stepCount", PETSC_INT, &_stepCount); CHKERRQ(ierr);
+  ierr = PetscViewerHDF5WriteAttribute(viewer, "odeSolver_chkpt_data", "stepCount", PETSC_INT, &_stepCount); CHKERRQ(ierr);
   ierr = PetscViewerHDF5WriteAttribute(viewer, "odeSolver_chkpt_data", "deltaT", PETSC_SCALAR, &_deltaT); CHKERRQ(ierr);
   ierr = PetscViewerHDF5PopGroup(viewer); CHKERRQ(ierr);
   VecDestroy(&temp);
@@ -1369,9 +1369,9 @@ PetscErrorCode RK43::writeCheckpoint(PetscViewer &viewer)
   VecCreateMPI(PETSC_COMM_WORLD, PETSC_DECIDE, 1, &temp);
   VecSetBlockSize(temp, 1);
   PetscObjectSetName((PetscObject) temp, "odeSolver_chkpt_data");
-  VecSet(temp,0.);
+  VecSet(temp,_stepCount);
 
-  ierr = PetscViewerHDF5PushGroup(viewer, "/odeSolver");        CHKERRQ(ierr);
+  ierr = PetscViewerHDF5PushGroup(viewer, "/odeSolver");                CHKERRQ(ierr);
   ierr = VecView(temp, viewer);                                         CHKERRQ(ierr);
   ierr = PetscViewerHDF5WriteAttribute(viewer, "odeSolver_chkpt_data", "stepCount", PETSC_INT, &_stepCount); CHKERRQ(ierr);
   ierr = PetscViewerHDF5WriteAttribute(viewer, "odeSolver_chkpt_data", "errA0", PETSC_SCALAR, &_errA[0]);    CHKERRQ(ierr);

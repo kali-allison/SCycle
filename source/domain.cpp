@@ -16,13 +16,13 @@ Domain::Domain(const char *file)
   _q(NULL),_r(NULL),_y(NULL),_z(NULL),_y0(NULL),_z0(NULL),_dq(1),_dr(1),
   _bCoordTrans(-1),
   _saveChkpts(1), _restartFromChkpt(1),_restartFromChkptSS(0),_outputFileMode(FILE_MODE_WRITE),_prevChkptTimeStep1D(0),_prevChkptTimeStep2D(0),
-  _ckpt(0), _ckptNumber(0), _interval(1e4),_outFileMode(FILE_MODE_APPEND)
+  _outFileMode(FILE_MODE_APPEND)
 {
   #if VERBOSE > 1
     string funcName = "Domain::Domain(const char *file)";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),FILENAME);
   #endif
-
+  //~ _ckpt(0), _ckptNumber(0), _interval(1e4),
   loadSettings(_file);
   checkInput();
 
@@ -63,7 +63,7 @@ Domain::Domain(const char *file,PetscInt Ny, PetscInt Nz)
   _q(NULL),_r(NULL),_y(NULL),_z(NULL),_y0(NULL),_z0(NULL),_dq(1),_dr(1),
   _bCoordTrans(-1),
   _saveChkpts(1), _restartFromChkpt(1),_restartFromChkptSS(1),_outputFileMode(FILE_MODE_APPEND),_prevChkptTimeStep1D(0),_prevChkptTimeStep2D(0),
-  _ckpt(0), _ckptNumber(0),_interval(500),_outFileMode(FILE_MODE_WRITE)
+  _outFileMode(FILE_MODE_WRITE)
 {
   #if VERBOSE > 1
     string funcName = "Domain::Domain(const char *file,PetscInt Ny, PetscInt Nz)";
@@ -188,8 +188,8 @@ PetscErrorCode Domain::loadSettings(const char *file)
     else if (var.compare("restartFromChkpt") == 0) { _restartFromChkpt = atoi(rhs.c_str()); }
     else if (var.compare("restartFromChkptSS") == 0) { _restartFromChkptSS = atoi(rhs.c_str()); }
 
-    else if (var.compare("enableCheckpointing") == 0) { _ckpt = atoi(rhs.c_str()); }
-    else if (var.compare("interval") == 0) { _interval = (int)atof(rhs.c_str()); }
+    //~ else if (var.compare("enableCheckpointing") == 0) { _ckpt = atoi(rhs.c_str()); }
+    //~ else if (var.compare("interval") == 0) { _interval = (int)atof(rhs.c_str()); }
   }
 
   #if VERBOSE > 1
@@ -273,8 +273,8 @@ PetscErrorCode Domain::checkInput()
   assert(_dq > 0 && !std::isnan(_dq));
   assert(_dr > 0 && !std::isnan(_dr));
 
-  assert(_ckpt >= 0 && _ckptNumber >= 0);
-  assert(_interval >= 0);
+  //~ assert(_ckpt >= 0 && _ckptNumber >= 0);
+  //~ assert(_interval >= 0);
 
   if (_systemEvolutionType == "steadyStateIts" && _restartFromChkpt == 1) {
     _restartFromChkpt = 0;
@@ -334,9 +334,9 @@ PetscErrorCode Domain::write(PetscViewer& viewer_hdf5)
   ierr = PetscViewerASCIIPrintf(viewer,"\n");CHKERRQ(ierr);
 
   // checkpoint settings
-  ierr = PetscViewerASCIIPrintf(viewer,"checkpoint_enabled = %i\n",_ckpt);CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer,"checkpoint_number = %i\n",_ckptNumber);CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer,"checkpoint_interval = %i\n",_interval);CHKERRQ(ierr);
+  //~ ierr = PetscViewerASCIIPrintf(viewer,"checkpoint_enabled = %i\n",_ckpt);CHKERRQ(ierr);
+  //~ ierr = PetscViewerASCIIPrintf(viewer,"checkpoint_number = %i\n",_ckptNumber);CHKERRQ(ierr);
+  //~ ierr = PetscViewerASCIIPrintf(viewer,"checkpoint_interval = %i\n",_interval);CHKERRQ(ierr);
 
   // get number of processors
   PetscMPIInt size;

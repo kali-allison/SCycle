@@ -19,9 +19,10 @@ bCoordTrans = 7 # controls grid stretching perpendicular to the fault: larger b 
 inputDir = examples/ex3_
 
 # specify what problem to simulate
+systemEvolutionType = transient # solve for steady-state or time evolution of the system
 bulkDeformationType = linearElastic # off-fault constitutive law
-momentumBalanceType = quasidynamic_and_dynamic # form of the momentum balance equation
-guessSteadyStateICs = 1 # use estimate of steady-state as initial condition
+#momentumBalanceType = quasidynamic_and_dynamic # form of the momentum balance equation
+guessSteadyStateICs = 1 # estimate steady-state initial conditions
 
 #=======================================================================
 # rate-and-state parameters

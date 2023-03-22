@@ -113,7 +113,7 @@ public:
   PetscInt        _linSolveCount;
 
   // checkpoint settings
-  PetscInt _ckpt, _ckptNumber;
+  //~ PetscInt _ckpt, _ckptNumber;
 
 
   // load settings from input file

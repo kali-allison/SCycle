@@ -493,19 +493,19 @@ PetscErrorCode PressureEq::loadFieldsFromFiles()
   CHKERRQ(ierr);
 #endif
 
-  if (_D->_ckptNumber > 0) {
-    ierr = loadVecFromInputFile(_p, _outputDir, "p_ckpt");
-    ierr = loadVecFromInputFile(_p_t, _outputDir, "p_t_ckpt");
-    ierr = loadVecFromInputFile(_k_p, _outputDir, "k_ckpt");
-    ierr = loadVecFromInputFile(_k_slip, _outputDir, "k_slip_ckpt");
-    ierr = loadVecFromInputFile(_k_press, _outputDir, "k_press_ckpt");
+  //~ if (_D->_ckptNumber > 0) {
+    //~ ierr = loadVecFromInputFile(_p, _outputDir, "p_ckpt");
+    //~ ierr = loadVecFromInputFile(_p_t, _outputDir, "p_t_ckpt");
+    //~ ierr = loadVecFromInputFile(_k_p, _outputDir, "k_ckpt");
+    //~ ierr = loadVecFromInputFile(_k_slip, _outputDir, "k_slip_ckpt");
+    //~ ierr = loadVecFromInputFile(_k_press, _outputDir, "k_press_ckpt");
 
-    // other material properties files to load (not checkpoint files)
-    ierr = loadVecFromInputFile(_beta_p, _outputDir, "p_n"); CHKERRQ(ierr);
-    ierr = loadVecFromInputFile(_beta_p, _outputDir, "p_beta"); CHKERRQ(ierr);
-    ierr = loadVecFromInputFile(_eta_p, _outputDir, "p_eta"); CHKERRQ(ierr);
-    ierr = loadVecFromInputFile(_rho_f, _outputDir, "p_rho_f"); CHKERRQ(ierr);
-  }
+    //~ // other material properties files to load (not checkpoint files)
+    //~ ierr = loadVecFromInputFile(_beta_p, _outputDir, "p_n"); CHKERRQ(ierr);
+    //~ ierr = loadVecFromInputFile(_beta_p, _outputDir, "p_beta"); CHKERRQ(ierr);
+    //~ ierr = loadVecFromInputFile(_eta_p, _outputDir, "p_eta"); CHKERRQ(ierr);
+    //~ ierr = loadVecFromInputFile(_rho_f, _outputDir, "p_rho_f"); CHKERRQ(ierr);
+  //~ }
 
 #if VERBOSE > 1
   ierr = PetscPrintf(PETSC_COMM_WORLD, "Ending %s in %s\n", funcName.c_str(), FILENAME);
