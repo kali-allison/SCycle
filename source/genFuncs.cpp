@@ -656,7 +656,7 @@ double MMS_test(const double z) {
   return z;
 }
 
-// Fills vec with the linear interpolation between the pairs of points (vals,depths).
+// Fills vec with the linear interpolation between the pairs of points (vals,depths) in the direction set by input coord.
 PetscErrorCode setVec(Vec& vec, const Vec& coord, vector<double>& vals,vector<double>& depths)
 {
   PetscErrorCode ierr = 0;

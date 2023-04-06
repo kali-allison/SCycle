@@ -113,7 +113,7 @@ PetscErrorCode printArray(const PetscScalar * arr,const PetscScalar len);
 double MMS_test(double z);
 double MMS_test(double y,double z);
 
-// setting vector
+// setting vector in z direction
 PetscErrorCode setVec(Vec& vec, const Vec& coord, vector<double>& vals,vector<double>& depths);
 
 // map to vector
