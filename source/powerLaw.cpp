@@ -251,7 +251,8 @@ PetscErrorCode Pseudoplasticity::computeInvEffVisc(const Vec& dgdev)
 // dissolution-precipitation creep class
 
 DissolutionPrecipitationCreep::DissolutionPrecipitationCreep(Domain& D, const Vec& y, const Vec& z, const char *file, const string delim)
-  : _file(file),_delim(delim),_inputDir("unspecified"),_y(&y),_z(&z),_R(8.3144e-3),_B(NULL),_Vs(NULL),_m(NULL),_invEffVisc(NULL)
+  : _file(file),_delim(delim),_inputDir("unspecified"),_y(&y),_z(&z),_R(8.3144e-3),
+  _B(NULL),_r(NULL),_Vs(NULL),_m(NULL),_invEffVisc(NULL)
 {
   #if VERBOSE > 1
     string funcName = "DissolutionPrecipitationCreep::DissolutionPrecipitationCreep";
@@ -278,6 +279,7 @@ DissolutionPrecipitationCreep::~DissolutionPrecipitationCreep()
   #endif
 
   VecDestroy(&_B);
+  VecDestroy(&_r);
   VecDestroy(&_Vs);
   VecDestroy(&_m);
   VecDestroy(&_invEffVisc);
@@ -322,6 +324,8 @@ PetscErrorCode DissolutionPrecipitationCreep::loadSettings()
     if (var.compare("inputDir") == 0) { _inputDir = rhs; }
     else if (var.compare("dp_BVals")==0) { loadVectorFromInputFile(rhsFull,_BVals); }
     else if (var.compare("dp_BDepths")==0) { loadVectorFromInputFile(rhsFull,_BDepths); }
+    else if (var.compare("dp_rVals")==0) { loadVectorFromInputFile(rhsFull,_rVals); }
+    else if (var.compare("dp_rDepths")==0) { loadVectorFromInputFile(rhsFull,_rDepths); }
     else if (var.compare("dp_VsVals")==0) { loadVectorFromInputFile(rhsFull,_VsVals); }
     else if (var.compare("dp_VsDepths")==0) { loadVectorFromInputFile(rhsFull,_VsDepths); }
     else if (var.compare("dp_mVals")==0) { loadVectorFromInputFile(rhsFull,_mVals); }
@@ -345,8 +349,11 @@ PetscErrorCode DissolutionPrecipitationCreep::checkInput()
   #endif
 
     assert(_BVals.size() >= 2);
+    assert(_rVals.size() >= 2);
     assert(_VsVals.size() >= 2);
     assert(_mVals.size() >= 2);
+    assert(_BVals.size() == _BDepths.size() );
+    assert(_rVals.size() == _rDepths.size() );
     assert(_VsVals.size() == _VsDepths.size() );
     assert(_mVals.size() == _mDepths.size() );
 
@@ -368,6 +375,7 @@ PetscErrorCode DissolutionPrecipitationCreep::setMaterialParameters()
 
   VecDuplicate(*_y,&_B);  setVec(_B,*_z,_BVals,_BDepths); PetscObjectSetName((PetscObject) _B, "B");
   VecDuplicate(*_y,&_Vs);  setVec(_Vs,*_z,_VsVals,_VsDepths); PetscObjectSetName((PetscObject) _Vs, "Vs");
+  VecDuplicate(*_y,&_r);  setVec(_r,*_z,_rVals,_rDepths); PetscObjectSetName((PetscObject) _r, "r");
   VecDuplicate(*_y,&_m);  setVec(_m,*_z,_mVals,_mDepths); PetscObjectSetName((PetscObject) _m, "m");
 
   VecDuplicate(*_y,&_invEffVisc); VecSet(_invEffVisc,1.0);
@@ -391,6 +399,7 @@ PetscErrorCode DissolutionPrecipitationCreep::loadFieldsFromFiles()
 
   ierr = loadVecFromInputFile(_B,_inputDir,"dp_B"); CHKERRQ(ierr);
   ierr = loadVecFromInputFile(_Vs,_inputDir,"dp_Vs"); CHKERRQ(ierr);
+  ierr = loadVecFromInputFile(_r,_inputDir,"dp_r"); CHKERRQ(ierr);
   ierr = loadVecFromInputFile(_m,_inputDir,"dp_m"); CHKERRQ(ierr);
   ierr = loadVecFromInputFile(_invEffVisc,_inputDir,"dp_invEffVisc"); CHKERRQ(ierr);
 
@@ -414,6 +423,7 @@ PetscErrorCode DissolutionPrecipitationCreep::writeContext(PetscViewer &viewer)
   // write context variables
   ierr = PetscViewerHDF5PushGroup(viewer, "/momBal/DissolutionPrecipitationCreep");  CHKERRQ(ierr);
   ierr = VecView(_B, viewer);                                           CHKERRQ(ierr);
+  ierr = VecView(_r, viewer);                                           CHKERRQ(ierr);
   ierr = VecView(_Vs, viewer);                                          CHKERRQ(ierr);
   ierr = VecView(_m, viewer);                                           CHKERRQ(ierr);
   ierr = PetscViewerHDF5PopGroup(viewer);                               CHKERRQ(ierr);
@@ -437,7 +447,7 @@ PetscErrorCode DissolutionPrecipitationCreep::loadCheckpoint(PetscViewer &viewer
   // write context variables
   ierr = PetscViewerHDF5PushGroup(viewer, "/momBal/DissolutionPrecipitationCreep");  CHKERRQ(ierr);
   ierr = VecLoad(_B, viewer);                                           CHKERRQ(ierr);
-  ierr = VecLoad(_ah2o, viewer);                                        CHKERRQ(ierr);
+  ierr = VecLoad(_r, viewer);                                           CHKERRQ(ierr);
   ierr = VecLoad(_Vs, viewer);                                          CHKERRQ(ierr);
   ierr = VecLoad(_m, viewer);                                           CHKERRQ(ierr);
   ierr = PetscViewerHDF5PopGroup(viewer);                               CHKERRQ(ierr);
@@ -451,10 +461,11 @@ PetscErrorCode DissolutionPrecipitationCreep::loadCheckpoint(PetscViewer &viewer
 
 // estimate 1 / (effective viscosity) from a reference strain rate
 // dg is in 1e-3 s^-1
-// let A = A exp(-Q/RT) d^-m
+// let A = A fh2o^rd^-m
+// let Q = 3*Vs / (R*T)
 // dg = A s^n -> s = (dg/A)^(1/n)
 // dg = s / v -> v = s/dg OR 1/v = dg/s
-PetscErrorCode DissolutionPrecipitationCreep::guessInvEffVisc(const Vec& Temp,const Vec& WaterActivity,const double dg)
+PetscErrorCode DissolutionPrecipitationCreep::guessInvEffVisc(const Vec& Temp,const Vec& WaterFugacity,const double dg,const Vec& grainSize)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -463,7 +474,37 @@ PetscErrorCode DissolutionPrecipitationCreep::guessInvEffVisc(const Vec& Temp,co
     CHKERRQ(ierr);
   #endif
 
-  assert(0);
+  PetscScalar const *B,*r,*Vs,*m,*d,*T,*fh2o;
+  PetscScalar *invEffVisc=0;
+  PetscInt Ii,Istart,Iend;
+  VecGetOwnershipRange(_invEffVisc,&Istart,&Iend);
+  VecGetArrayRead(_B,&B);
+  VecGetArrayRead(_Vs,&Vs);
+  VecGetArrayRead(_r,&r);
+  VecGetArrayRead(_m,&m);
+  VecGetArrayRead(grainSize,&d);
+  VecGetArrayRead(Temp,&T);
+  VecGetArrayRead(WaterFugacity,&fh2o);
+  VecGetArray(_invEffVisc,&invEffVisc);
+  PetscInt Jj = 0;
+  for (Ii=Istart;Ii<Iend;Ii++) {
+
+    PetscScalar A = B[Jj] * pow(fh2o[Jj],r[Jj]) * Vs[Jj] * pow(d[Jj],-m[Jj]);
+    PetscScalar Q = 3.0*Vs[Jj] / (_R*T[Jj]); // everything in the exponential except deviatoric stress
+
+    PetscScalar s = (1.0/Q) * log((1.0/A) * dg + 1.0); // log = natural log
+    invEffVisc[Jj] = dg / s;
+
+    Jj++;
+  }
+  VecRestoreArrayRead(_B,&B);
+  VecRestoreArrayRead(_Vs,&Vs);
+  VecRestoreArrayRead(_r,&r);
+  VecRestoreArrayRead(_m,&m);
+  VecRestoreArrayRead(grainSize,&d);
+  VecRestoreArrayRead(Temp,&T);
+  VecRestoreArrayRead(WaterFugacity,&fh2o);
+  VecRestoreArray(_invEffVisc,&invEffVisc);
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -473,7 +514,7 @@ PetscErrorCode DissolutionPrecipitationCreep::guessInvEffVisc(const Vec& Temp,co
 }
 
 // compute 1 / (effective viscosity)
-PetscErrorCode DissolutionPrecipitationCreep::computeInvEffVisc(const Vec& Temp,const Vec& WaterActivity,const Vec& sdev,const Vec& grainSize)
+PetscErrorCode DissolutionPrecipitationCreep::computeInvEffVisc(const Vec& Temp,const Vec& WaterFugacity,const Vec& sdev,const Vec& grainSize)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -482,17 +523,18 @@ PetscErrorCode DissolutionPrecipitationCreep::computeInvEffVisc(const Vec& Temp,
     CHKERRQ(ierr);
   #endif
 
-  PetscScalar const *s,*B,*Vs,*m,*d,*T,*ah2o;
+  PetscScalar const *s,*B,*r,*Vs,*m,*d,*T,*fh2o;
   PetscScalar *invEffVisc=0;
   PetscInt Ii,Istart,Iend;
   VecGetOwnershipRange(_invEffVisc,&Istart,&Iend);
   VecGetArrayRead(sdev,&s);
   VecGetArrayRead(_B,&B);
   VecGetArrayRead(_Vs,&Vs);
+  VecGetArrayRead(_r,&r);
   VecGetArrayRead(_m,&m);
   VecGetArrayRead(grainSize,&d);
   VecGetArrayRead(Temp,&T);
-  VecGetArrayRead(WaterActivity,&ah2o);
+  VecGetArrayRead(WaterFugacity,&fh2o);
   VecGetArray(_invEffVisc,&invEffVisc);
   PetscInt Jj = 0;
   for (Ii=Istart;Ii<Iend;Ii++) {
@@ -502,16 +544,17 @@ PetscErrorCode DissolutionPrecipitationCreep::computeInvEffVisc(const Vec& Temp,
     PetscScalar expVal = exp(num/RT);
     assert(~std::isnan(expVal));
     assert(~std::isinf(expVal));
-    invEffVisc[Jj] = 1e3 * B[Jj] * ah2o[Jj] * Vs[Jj] * pow(d[Jj],-m[Jj]) * (expVal - 1.0);
+    invEffVisc[Jj] = 1e3 * B[Jj] * pow(fh2o[Jj],r[Jj]) * Vs[Jj] * pow(d[Jj],-m[Jj]) * (expVal - 1.0);
     Jj++;
   }
   VecRestoreArrayRead(sdev,&s);
   VecRestoreArrayRead(_B,&B);
   VecRestoreArrayRead(_Vs,&Vs);
+  VecRestoreArrayRead(_r,&r);
   VecRestoreArrayRead(_m,&m);
   VecRestoreArrayRead(grainSize,&d);
   VecRestoreArrayRead(Temp,&T);
-  VecRestoreArrayRead(WaterActivity,&ah2o);
+  VecRestoreArrayRead(WaterFugacity,&fh2o);
   VecRestoreArray(_invEffVisc,&invEffVisc);
 
   #if VERBOSE > 1
@@ -526,7 +569,8 @@ PetscErrorCode DissolutionPrecipitationCreep::computeInvEffVisc(const Vec& Temp,
 // dislocation creep class
 
 DislocationCreep::DislocationCreep(Domain& D, const Vec& y, const Vec& z, const char *file, const string delim)
-  : _file(file),_delim(delim),_inputDir("unspecified"),_y(&y),_z(&z)
+  : _file(file),_delim(delim),_inputDir("unspecified"),_y(&y),_z(&z),
+  _A(NULL),_n(NULL),_r(NULL),_QR(NULL),_invEffVisc(NULL)
 {
   #if VERBOSE > 1
     string funcName = "DislocationCreep::DislocationCreep";
@@ -554,6 +598,7 @@ DislocationCreep::~DislocationCreep()
 
   VecDestroy(&_A);
   VecDestroy(&_n);
+  VecDestroy(&_r);
   VecDestroy(&_QR);
   VecDestroy(&_invEffVisc);
 
@@ -597,6 +642,8 @@ PetscErrorCode DislocationCreep::loadSettings()
     if (var.compare("inputDir") == 0) { _inputDir = rhs; }
     else if (var.compare("disl_AVals")==0) { loadVectorFromInputFile(rhsFull,_AVals); }
     else if (var.compare("disl_ADepths")==0) { loadVectorFromInputFile(rhsFull,_ADepths); }
+    else if (var.compare("disl_rVals")==0) { loadVectorFromInputFile(rhsFull,_rVals); }
+    else if (var.compare("disl_rDepths")==0) { loadVectorFromInputFile(rhsFull,_rDepths); }
     else if (var.compare("disl_QRVals")==0) { loadVectorFromInputFile(rhsFull,_QRVals); }
     else if (var.compare("disl_QRDepths")==0) { loadVectorFromInputFile(rhsFull,_QRDepths); }
     else if (var.compare("disl_nVals")==0) { loadVectorFromInputFile(rhsFull,_nVals); }
@@ -621,8 +668,10 @@ PetscErrorCode DislocationCreep::checkInput()
 
     assert(_AVals.size() >= 2);
     assert(_QRVals.size() >= 2);
+    assert(_rVals.size() >= 2);
     assert(_nVals.size() >= 2);
     assert(_AVals.size() == _ADepths.size() );
+    assert(_rVals.size() == _rDepths.size() );
     assert(_QRVals.size() == _QRDepths.size() );
     assert(_nVals.size() == _nDepths.size() );
 
@@ -645,7 +694,9 @@ PetscErrorCode DislocationCreep::setMaterialParameters()
   VecDuplicate(*_y,&_A);  setVec(_A,*_z,_AVals,_ADepths); PetscObjectSetName((PetscObject) _A, "A");
   VecDuplicate(*_y,&_QR);  setVec(_QR,*_z,_QRVals,_QRDepths); PetscObjectSetName((PetscObject) _QR, "QR");
   VecDuplicate(*_y,&_n);  setVec(_n,*_z,_nVals,_nDepths); PetscObjectSetName((PetscObject) _n, "n");
+  VecDuplicate(*_y,&_r);  setVec(_r,*_z,_rVals,_rDepths); PetscObjectSetName((PetscObject) _r, "r");
 
+  VecView(_n,PETSC_VIEWER_STDOUT_WORLD);
   VecDuplicate(*_y,&_invEffVisc); VecSet(_invEffVisc,1.0);
   PetscObjectSetName((PetscObject) _invEffVisc, "invEffVisc");
 
@@ -668,6 +719,7 @@ PetscErrorCode DislocationCreep::loadFieldsFromFiles()
   ierr = loadVecFromInputFile(_A,_inputDir,"disl_A"); CHKERRQ(ierr);
   ierr = loadVecFromInputFile(_QR,_inputDir,"disl_QR"); CHKERRQ(ierr);
   ierr = loadVecFromInputFile(_n,_inputDir,"disl_n"); CHKERRQ(ierr);
+  ierr = loadVecFromInputFile(_r,_inputDir,"disl_r"); CHKERRQ(ierr);
   ierr = loadVecFromInputFile(_invEffVisc,_inputDir,"disl_invEffVisc"); CHKERRQ(ierr);
 
   #if VERBOSE > 1
@@ -692,6 +744,7 @@ PetscErrorCode DislocationCreep::writeContext(PetscViewer &viewer)
   ierr = VecView(_A, viewer);                                           CHKERRQ(ierr);
   ierr = VecView(_QR, viewer);                                          CHKERRQ(ierr);
   ierr = VecView(_n, viewer);                                           CHKERRQ(ierr);
+  ierr = VecView(_r, viewer);                                           CHKERRQ(ierr);
   ierr = PetscViewerHDF5PopGroup(viewer);                               CHKERRQ(ierr);
 
   #if VERBOSE > 1
@@ -715,6 +768,7 @@ PetscErrorCode DislocationCreep::loadCheckpoint(PetscViewer &viewer)
   ierr = VecLoad(_A, viewer);                                           CHKERRQ(ierr);
   ierr = VecLoad(_QR, viewer);                                          CHKERRQ(ierr);
   ierr = VecLoad(_n, viewer);                                           CHKERRQ(ierr);
+  ierr = VecLoad(_r, viewer);                                           CHKERRQ(ierr);
   ierr = PetscViewerHDF5PopGroup(viewer);                               CHKERRQ(ierr);
 
   #if VERBOSE > 1
@@ -729,7 +783,7 @@ PetscErrorCode DislocationCreep::loadCheckpoint(PetscViewer &viewer)
 // let A = A exp(-Q/RT) d^-m
 // dg = A s^n -> s = (dg/A)^(1/n)
 // dg = s / v -> v = s/dg OR 1/v = dg/s
-PetscErrorCode DislocationCreep::guessInvEffVisc(const Vec& Temp,const Vec& WaterActivity,const double dg)
+PetscErrorCode DislocationCreep::guessInvEffVisc(const Vec& Temp,const Vec& WaterFugacity,const double dg)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -738,28 +792,29 @@ PetscErrorCode DislocationCreep::guessInvEffVisc(const Vec& Temp,const Vec& Wate
     CHKERRQ(ierr);
   #endif
 
-  PetscScalar const *A,*B,*n,*T,*fh2o;
+  PetscScalar const *A,*QR,*r,*n,*T,*fh2o;
   PetscScalar *invEffVisc;
   PetscInt Ii,Istart,Iend;
   VecGetOwnershipRange(_invEffVisc,&Istart,&Iend);
   VecGetArrayRead(_A,&A);
-  VecGetArrayRead(_QR,&B);
+  VecGetArrayRead(_QR,&QR);
   VecGetArrayRead(_n,&n);
+  VecGetArrayRead(_r,&r);
   VecGetArrayRead(Temp,&T);
-  VecGetArrayRead(WaterActivity,&fh2o);
+  VecGetArrayRead(WaterFugacity,&fh2o);
   VecGetArray(_invEffVisc,&invEffVisc);
   PetscInt Jj = 0;
   for (Ii=Istart;Ii<Iend;Ii++) {
-    PetscScalar temp = A[Jj] * fh2o[Jj] * exp(-B[Jj]/T[Jj]);
+    PetscScalar temp = A[Jj] * pow(fh2o[Jj],r[Jj]) * exp(-QR[Jj]/T[Jj]);
     PetscScalar s = pow( dg/temp, 1.0/n[Jj] );
     invEffVisc[Jj] = dg / s;
     Jj++;
   }
   VecRestoreArrayRead(_A,&A);
-  VecRestoreArrayRead(_QR,&B);
+  VecRestoreArrayRead(_QR,&QR);
   VecRestoreArrayRead(_n,&n);
   VecRestoreArrayRead(Temp,&T);
-  VecRestoreArrayRead(WaterActivity,&fh2o);
+  VecRestoreArrayRead(WaterFugacity,&fh2o);
   VecRestoreArray(_invEffVisc,&invEffVisc);
 
 
@@ -771,7 +826,7 @@ PetscErrorCode DislocationCreep::guessInvEffVisc(const Vec& Temp,const Vec& Wate
 }
 
 // compute 1 / (effective viscosity)
-PetscErrorCode DislocationCreep::computeInvEffVisc(const Vec& Temp,const Vec& WaterActivity,const Vec& sdev)
+PetscErrorCode DislocationCreep::computeInvEffVisc(const Vec& Temp,const Vec& WaterFugacity,const Vec& sdev)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -780,29 +835,30 @@ PetscErrorCode DislocationCreep::computeInvEffVisc(const Vec& Temp,const Vec& Wa
     CHKERRQ(ierr);
   #endif
 
-  PetscScalar const *s,*A,*B,*n,*T,*ah2o;
+  PetscScalar const *s,*A,*QR,*r,*n,*T,*fh2o;
   PetscScalar *invEffVisc=0;
   PetscInt Ii,Istart,Iend;
   VecGetOwnershipRange(_invEffVisc,&Istart,&Iend);
   VecGetArrayRead(sdev,&s);
   VecGetArrayRead(_A,&A);
-  VecGetArrayRead(_QR,&B);
+  VecGetArrayRead(_QR,&QR);
   VecGetArrayRead(_n,&n);
+  VecGetArrayRead(_r,&r);
   VecGetArrayRead(Temp,&T);
-  VecGetArrayRead(WaterActivity,&ah2o);
+  VecGetArrayRead(WaterFugacity,&fh2o);
   VecGetArray(_invEffVisc,&invEffVisc);
   PetscInt Jj = 0;
   for (Ii=Istart;Ii<Iend;Ii++) {
     assert(!std::isnan(s[Jj]));
-    invEffVisc[Jj] = 1e3 * A[Jj] * ah2o[Jj] * pow(s[Jj],n[Jj]-1.0) * exp(-B[Jj]/T[Jj]);
+    invEffVisc[Jj] = 1e3 * A[Jj] * pow(fh2o[Jj],r[Jj]) * pow(s[Jj],n[Jj]-1.0) * exp(-QR[Jj]/T[Jj]);
     Jj++;
   }
   VecRestoreArrayRead(sdev,&s);
   VecRestoreArrayRead(_A,&A);
-  VecRestoreArrayRead(_QR,&B);
+  VecRestoreArrayRead(_QR,&QR);
   VecRestoreArrayRead(_n,&n);
   VecRestoreArrayRead(Temp,&T);
-  VecRestoreArrayRead(WaterActivity,&ah2o);
+  VecRestoreArrayRead(WaterFugacity,&fh2o);
   VecRestoreArray(_invEffVisc,&invEffVisc);
 
   #if VERBOSE > 1
@@ -817,7 +873,8 @@ PetscErrorCode DislocationCreep::computeInvEffVisc(const Vec& Temp,const Vec& Wa
 
 
 DiffusionCreep::DiffusionCreep(Domain& D, const Vec& y, const Vec& z, const char *file, const string delim)
-  : _file(file),_delim(delim),_inputDir("unspecified"),_y(&y),_z(&z)
+  : _file(file),_delim(delim),_inputDir("unspecified"),_y(&y),_z(&z),
+  _A(NULL),_n(NULL),_r(NULL),_QR(NULL),_m(NULL),_invEffVisc(NULL)
 {
   #if VERBOSE > 1
     string funcName = "DiffusionCreep::DiffusionCreep";
@@ -827,8 +884,6 @@ DiffusionCreep::DiffusionCreep(Domain& D, const Vec& y, const Vec& z, const char
   loadSettings();
   checkInput();
   setMaterialParameters();
-  //~ loadFieldsFromFiles();
-
   if (!D._restartFromChkpt && !D._restartFromChkptSS) {
     loadFieldsFromFiles();
   }
@@ -847,6 +902,7 @@ DiffusionCreep::~DiffusionCreep()
 
   VecDestroy(&_A);
   VecDestroy(&_n);
+  VecDestroy(&_r);
   VecDestroy(&_QR);
   VecDestroy(&_m);
   VecDestroy(&_invEffVisc);
@@ -891,8 +947,10 @@ PetscErrorCode DiffusionCreep::loadSettings()
     if (var.compare("inputDir") == 0) { _inputDir = rhs; }
     else if (var.compare("diff_AVals")==0) { loadVectorFromInputFile(rhsFull,_AVals); }
     else if (var.compare("diff_ADepths")==0) { loadVectorFromInputFile(rhsFull,_ADepths); }
-    else if (var.compare("diff_QRVals")==0) { loadVectorFromInputFile(rhsFull,_BVals); }
-    else if (var.compare("diff_QRDepths")==0) { loadVectorFromInputFile(rhsFull,_BDepths); }
+    else if (var.compare("diff_QRVals")==0) { loadVectorFromInputFile(rhsFull,_QRVals); }
+    else if (var.compare("diff_QRDepths")==0) { loadVectorFromInputFile(rhsFull,_QRDepths); }
+    else if (var.compare("diff_rVals")==0) { loadVectorFromInputFile(rhsFull,_rVals); }
+    else if (var.compare("diff_rDepths")==0) { loadVectorFromInputFile(rhsFull,_rDepths); }
     else if (var.compare("diff_nVals")==0) { loadVectorFromInputFile(rhsFull,_nVals); }
     else if (var.compare("diff_nDepths")==0) { loadVectorFromInputFile(rhsFull,_nDepths); }
     else if (var.compare("diff_mVals")==0) { loadVectorFromInputFile(rhsFull,_mVals); }
@@ -917,12 +975,14 @@ PetscErrorCode DiffusionCreep::checkInput()
   #endif
 
     assert(_AVals.size() >= 2);
-    assert(_BVals.size() >= 2);
+    assert(_QRVals.size() >= 2);
+    assert(_rVals.size() >= 2);
     assert(_nVals.size() >= 2);
     assert(_mVals.size() >= 2);
     assert(_AVals.size() == _ADepths.size() );
-    assert(_BVals.size() == _BDepths.size() );
+    assert(_QRVals.size() == _QRDepths.size() );
     assert(_nVals.size() == _nDepths.size() );
+    assert(_rVals.size() == _rDepths.size() );
     assert(_mVals.size() == _mDepths.size() );
 
   #if VERBOSE > 1
@@ -942,8 +1002,9 @@ PetscErrorCode DiffusionCreep::setMaterialParameters()
   #endif
 
   VecDuplicate(*_y,&_A);  setVec(_A,*_z,_AVals,_ADepths); PetscObjectSetName((PetscObject) _A, "A");
-  VecDuplicate(_A,&_QR); setVec(_QR,*_z,_BVals,_BDepths); PetscObjectSetName((PetscObject) _QR, "QR");
+  VecDuplicate(_A,&_QR); setVec(_QR,*_z,_QRVals,_QRDepths); PetscObjectSetName((PetscObject) _QR, "QR");
   VecDuplicate(_A,&_n);  setVec(_n,*_z,_nVals,_nDepths); PetscObjectSetName((PetscObject) _n, "n");
+  VecDuplicate(_A,&_r);  setVec(_r,*_z,_rVals,_rDepths); PetscObjectSetName((PetscObject) _r, "r");
   VecDuplicate(_A,&_m);  setVec(_m,*_z,_mVals,_mDepths); PetscObjectSetName((PetscObject) _m, "m");
 
   VecDuplicate(_A,&_invEffVisc); VecSet(_invEffVisc,1.0); PetscObjectSetName((PetscObject) _invEffVisc, "invEffVisc");
@@ -967,6 +1028,7 @@ PetscErrorCode DiffusionCreep::loadFieldsFromFiles()
   ierr = loadVecFromInputFile(_A,_inputDir,"diff_A"); CHKERRQ(ierr);
   ierr = loadVecFromInputFile(_QR,_inputDir,"diff_QR"); CHKERRQ(ierr);
   ierr = loadVecFromInputFile(_n,_inputDir,"diff_n"); CHKERRQ(ierr);
+  ierr = loadVecFromInputFile(_r,_inputDir,"diff_r"); CHKERRQ(ierr);
   ierr = loadVecFromInputFile(_m,_inputDir,"diff_m"); CHKERRQ(ierr);
   ierr = loadVecFromInputFile(_invEffVisc,_inputDir,"diff_invEffVisc"); CHKERRQ(ierr);
 
@@ -987,10 +1049,11 @@ PetscErrorCode DiffusionCreep::writeContext(PetscViewer &viewer)
   #endif
 
   // write context variables
-  ierr = PetscViewerHDF5PushGroup(viewer, "/momBal/diffusionCreep");           CHKERRQ(ierr);
+  ierr = PetscViewerHDF5PushGroup(viewer, "/momBal/diffusionCreep");    CHKERRQ(ierr);
   ierr = VecView(_A, viewer);                                           CHKERRQ(ierr);
   ierr = VecView(_QR, viewer);                                          CHKERRQ(ierr);
   ierr = VecView(_n, viewer);                                           CHKERRQ(ierr);
+  ierr = VecView(_r, viewer);                                           CHKERRQ(ierr);
   ierr = VecView(_m, viewer);                                           CHKERRQ(ierr);
   ierr = PetscViewerHDF5PopGroup(viewer);                               CHKERRQ(ierr);
 
@@ -1011,10 +1074,11 @@ PetscErrorCode DiffusionCreep::loadCheckpoint(PetscViewer &viewer)
   #endif
 
   // write context variables
-  ierr = PetscViewerHDF5PushGroup(viewer, "/momBal/diffusionCreep");            CHKERRQ(ierr);
+  ierr = PetscViewerHDF5PushGroup(viewer, "/momBal/diffusionCreep");    CHKERRQ(ierr);
   ierr = VecLoad(_A, viewer);                                           CHKERRQ(ierr);
   ierr = VecLoad(_QR, viewer);                                          CHKERRQ(ierr);
   ierr = VecLoad(_n, viewer);                                           CHKERRQ(ierr);
+  ierr = VecLoad(_r, viewer);                                           CHKERRQ(ierr);
   ierr = VecLoad(_m, viewer);                                           CHKERRQ(ierr);
   ierr = PetscViewerHDF5PopGroup(viewer);                               CHKERRQ(ierr);
 
@@ -1030,7 +1094,7 @@ PetscErrorCode DiffusionCreep::loadCheckpoint(PetscViewer &viewer)
 // let A = A exp(-Q/RT) d^-m
 // dg = A s^n -> s = (dg/A)^(1/n)
 // dg = s / v -> v = s/dg OR 1/v = dg/s
-PetscErrorCode DiffusionCreep::guessInvEffVisc(const Vec& Temp,const Vec& WaterActivity,const double dg,const Vec& grainSize)
+PetscErrorCode DiffusionCreep::guessInvEffVisc(const Vec& Temp,const Vec& WaterFugacity,const double dg,const Vec& grainSize)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -1039,32 +1103,34 @@ PetscErrorCode DiffusionCreep::guessInvEffVisc(const Vec& Temp,const Vec& WaterA
     CHKERRQ(ierr);
   #endif
 
-  PetscScalar const *A,*B,*n,*T,*d,*m,*fh2o;
+  PetscScalar const *A,*QR,*n,*r,*T,*d,*m,*fh2o;
   PetscScalar *invEffVisc;
   PetscInt Ii,Istart,Iend;
   VecGetOwnershipRange(_invEffVisc,&Istart,&Iend);
   VecGetArrayRead(grainSize,&d);
   VecGetArrayRead(_A,&A);
-  VecGetArrayRead(_QR,&B);
+  VecGetArrayRead(_QR,&QR);
   VecGetArrayRead(_n,&n);
+  VecGetArrayRead(_r,&r);
   VecGetArrayRead(_m,&m);
   VecGetArrayRead(Temp,&T);
-  VecGetArrayRead(WaterActivity,&fh2o);
+  VecGetArrayRead(WaterFugacity,&fh2o);
   VecGetArray(_invEffVisc,&invEffVisc);
   PetscInt Jj = 0;
   for (Ii=Istart;Ii<Iend;Ii++) {
-    PetscScalar temp = A[Jj] * fh2o[Jj] * exp(-B[Jj]/T[Jj]) * pow(d[Jj],-m[Jj]);
+    PetscScalar temp = A[Jj] * pow(fh2o[Jj],r[Jj]) * exp(-QR[Jj]/T[Jj]) * pow(d[Jj],-m[Jj]);
     PetscScalar s = pow( dg/temp, 1.0/n[Jj] );
     invEffVisc[Jj] = dg / s;
     Jj++;
   }
   VecRestoreArrayRead(grainSize,&d);
   VecRestoreArrayRead(_A,&A);
-  VecRestoreArrayRead(_QR,&B);
+  VecRestoreArrayRead(_QR,&QR);
   VecRestoreArrayRead(_n,&n);
+  VecRestoreArrayRead(_r,&r);
   VecRestoreArrayRead(_m,&m);
   VecRestoreArrayRead(Temp,&T);
-  VecRestoreArrayRead(WaterActivity,&fh2o);
+  VecRestoreArrayRead(WaterFugacity,&fh2o);
   VecRestoreArray(_invEffVisc,&invEffVisc);
 
   #if VERBOSE > 1
@@ -1075,7 +1141,7 @@ PetscErrorCode DiffusionCreep::guessInvEffVisc(const Vec& Temp,const Vec& WaterA
 }
 
 // compute 1 / (effective viscosity)
-PetscErrorCode DiffusionCreep::computeInvEffVisc(const Vec& Temp,const Vec& WaterActivity,const Vec& sdev,const Vec& grainSize)
+PetscErrorCode DiffusionCreep::computeInvEffVisc(const Vec& Temp,const Vec& WaterFugacity,const Vec& sdev,const Vec& grainSize)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -1084,34 +1150,36 @@ PetscErrorCode DiffusionCreep::computeInvEffVisc(const Vec& Temp,const Vec& Wate
     CHKERRQ(ierr);
   #endif
 
-  PetscScalar const *s,*A,*B,*n,*T,*d,*m,*ah2o;
+  PetscScalar const *s,*A,*QR,*n,*r,*T,*d,*m,*fh2o;
   PetscScalar *invEffVisc;
   PetscInt Ii,Istart,Iend;
   VecGetOwnershipRange(_invEffVisc,&Istart,&Iend);
   VecGetArrayRead(sdev,&s);
   VecGetArrayRead(grainSize,&d);
   VecGetArrayRead(_A,&A);
-  VecGetArrayRead(_QR,&B);
+  VecGetArrayRead(_QR,&QR);
   VecGetArrayRead(_n,&n);
+  VecGetArrayRead(_r,&r);
   VecGetArrayRead(_m,&m);
   VecGetArrayRead(Temp,&T);
-  VecGetArrayRead(WaterActivity,&ah2o);
+  VecGetArrayRead(WaterFugacity,&fh2o);
   VecGetArray(_invEffVisc,&invEffVisc);
   PetscInt Jj = 0;
   for (Ii=Istart;Ii<Iend;Ii++) {
     assert(!std::isnan(d[Jj]));
     assert(!std::isnan(s[Jj]));
-    invEffVisc[Jj] = 1e3 * A[Jj] * ah2o[Jj] * pow(s[Jj],n[Jj]-1.0) * exp(-B[Jj]/T[Jj]) * pow(d[Jj],-m[Jj]);
+    invEffVisc[Jj] = 1e3 * A[Jj] * pow(fh2o[Jj],r[Jj]) * pow(s[Jj],n[Jj]-1.0) * exp(-QR[Jj]/T[Jj]) * pow(d[Jj],-m[Jj]);
     Jj++;
   }
   VecRestoreArrayRead(sdev,&s);
   VecRestoreArrayRead(grainSize,&d);
   VecRestoreArrayRead(_A,&A);
-  VecRestoreArrayRead(_QR,&B);
+  VecRestoreArrayRead(_QR,&QR);
   VecRestoreArrayRead(_n,&n);
+  VecRestoreArrayRead(_r,&r);
   VecRestoreArrayRead(_m,&m);
   VecRestoreArrayRead(Temp,&T);
-  VecRestoreArrayRead(WaterActivity,&ah2o);
+  VecRestoreArrayRead(WaterFugacity,&fh2o);
   VecRestoreArray(_invEffVisc,&invEffVisc);
 
   #if VERBOSE > 1
@@ -1130,7 +1198,7 @@ PowerLaw::PowerLaw(Domain& D,std::string bcRType,std::string bcTType,std::string
   _order(D._order),_Ny(D._Ny),_Nz(D._Nz),_Ly(D._Ly),_Lz(D._Lz),_y(&D._y),_z(&D._z),
   _isMMS(D._isMMS),_wPlasticity("no"),_wDissPrecCreep("yes"),_wDislCreep("yes"),_wDiffCreep("no"),_wLinearMaxwell("no"),
   _plastic(NULL),_dp(NULL),_disl(NULL),_diff(NULL),
-  _mu(NULL),_rho(NULL),_cs(NULL),_ah2o(NULL),_effVisc(NULL),_T(NULL),_grainSize(NULL),_effViscCap(1e16),
+  _mu(NULL),_rho(NULL),_cs(NULL),_fh2o(NULL),_effVisc(NULL),_T(NULL),_grainSize(NULL),_effViscCap(1e16),
   _u(NULL),_surfDisp(NULL),_sxy(NULL),_sxz(NULL),_sdev(NULL),
   _gTxy(NULL),_gVxy(NULL),_dgVxy(NULL),_gTxz(NULL),_gVxz(NULL),_dgVxz(NULL),_dgVdev(NULL),_dgVdev_disl(NULL),
   _linSolverSS("MUMPSCHOLESKY"),_linSolverTrans("MUMPSCHOLESKY"),_bcRType(bcRType),_bcTType(bcTType),_bcLType(bcLType),_bcBType(bcBType),
@@ -1155,6 +1223,7 @@ PowerLaw::PowerLaw(Domain& D,std::string bcRType,std::string bcTType,std::string
   }
   if (_wDissPrecCreep == "yes") {
     _dp = new DissolutionPrecipitationCreep(D, *_y,*_z,_file,_delim);
+    PetscPrintf(PETSC_COMM_WORLD,"Warning: dissolution-precipitation creep is not included in effective viscosity computation!\n");
   }
   if (_wDislCreep == "yes") {
     _disl = new DislocationCreep(D, *_y,*_z,_file,_delim);
@@ -1205,7 +1274,7 @@ PowerLaw::~PowerLaw()
   VecDestroy(&_mu);
   VecDestroy(&_rho);
   VecDestroy(&_cs);
-  VecDestroy(&_ah2o);
+  VecDestroy(&_fh2o);
   VecDestroy(&_effVisc);
   VecDestroy(&_T); VecDestroy(&_grainSize);
   VecDestroy(&_u); VecDestroy(&_surfDisp);
@@ -1266,8 +1335,8 @@ PetscErrorCode PowerLaw::loadSettings(const char *file)
     else if (var.compare("muDepths")==0) { loadVectorFromInputFile(rhsFull,_muDepths); }
     else if (var.compare("rhoVals")==0) { loadVectorFromInputFile(rhsFull,_rhoVals); }
     else if (var.compare("rhoDepths")==0) { loadVectorFromInputFile(rhsFull,_rhoDepths); }
-    else if (var.compare("ah2oVals")==0) { loadVectorFromInputFile(rhsFull,_ah2oVals); }
-    else if (var.compare("ah2oDepths")==0) { loadVectorFromInputFile(rhsFull,_ah2oDepths); }
+    else if (var.compare("fh2oVals")==0) { loadVectorFromInputFile(rhsFull,_fh2oVals); }
+    else if (var.compare("fh2oDepths")==0) { loadVectorFromInputFile(rhsFull,_fh2oDepths); }
 
     // deformation style
     else if (var.compare("wPlasticity")==0) { _wPlasticity = rhs.c_str(); }
@@ -1374,7 +1443,7 @@ PetscErrorCode PowerLaw::allocateFields()
   VecDuplicate(_rhs,&_u);        VecSet(_u,0.0);        PetscObjectSetName((PetscObject) _u, "u");
   VecDuplicate(_bcT,&_surfDisp); VecSet(_surfDisp,0.0); PetscObjectSetName((PetscObject) _surfDisp, "surfDisp");
   VecDuplicate(_u,&_effVisc);    VecSet(_effVisc,0.0);  PetscObjectSetName((PetscObject) _effVisc, "effVisc");
-  VecDuplicate(_u,&_ah2o);       VecSet(_ah2o,1.0);     PetscObjectSetName((PetscObject) _ah2o, "ah2o");
+  VecDuplicate(_u,&_fh2o);       VecSet(_fh2o,1.0);     PetscObjectSetName((PetscObject) _fh2o, "fh2o");
 
 
   // allocate space for stress and strain vectors
@@ -1412,10 +1481,10 @@ PetscErrorCode PowerLaw::setMaterialParameters()
   // set each field using it's vals and depths vectors
   ierr = setVec(_mu,*_z,_muVals,_muDepths);                             CHKERRQ(ierr);
   ierr = setVec(_rho,*_z,_rhoVals,_rhoDepths);                          CHKERRQ(ierr);
-  if (_ah2oVals.size() >= 0) { // otherwise default to 1
-    ierr = setVec(_ah2o,*_y,_ah2oVals,_ah2oDepths);                     CHKERRQ(ierr);
+  if (_fh2oVals.size() >= 2) { // otherwise default to 1
+    ierr = setVec(_fh2o,*_y,_fh2oVals,_fh2oDepths);                     CHKERRQ(ierr);
   }
-  if (_wDiffCreep.compare("yes")==0) {
+  if (_wDiffCreep.compare("yes")==0 || _wDissPrecCreep.compare("yes")==0) {
     ierr = setVec(_grainSize,*_z,_grainSizeVals,_grainSizeDepths);      CHKERRQ(ierr);
   }
 
@@ -1471,7 +1540,7 @@ PetscErrorCode PowerLaw::loadFieldsFromFiles()
   ierr = loadVecFromInputFile(_u,_inputDir,"u"); CHKERRQ(ierr);
   ierr = loadVecFromInputFile(_mu,_inputDir,"mu"); CHKERRQ(ierr);
   ierr = loadVecFromInputFile(_rho,_inputDir,"rho"); CHKERRQ(ierr);
-  ierr = loadVecFromInputFile(_ah2o,_inputDir,"ah2o"); CHKERRQ(ierr);
+  ierr = loadVecFromInputFile(_fh2o,_inputDir,"fh2o"); CHKERRQ(ierr);
   ierr = loadVecFromInputFile(_effVisc,_inputDir,"effVisc"); CHKERRQ(ierr);
 
   ierr = loadVecFromInputFile(_T,_inputDir,"T"); CHKERRQ(ierr);
@@ -2090,14 +2159,17 @@ PetscErrorCode PowerLaw::computeViscosity(const PetscScalar viscCap)
 
   // estimate 1 / (effective viscosity) based on strain rate
   if (_wPlasticity.compare("yes")==0) { _plastic->computeInvEffVisc(_dgVdev); }
-  if (_wDissPrecCreep.compare("yes")==0) { _dp->computeInvEffVisc(_T,_ah2o,_sdev,_grainSize); }
-  if (_wDislCreep.compare("yes")==0) { _disl->computeInvEffVisc(_T,_ah2o,_sdev); }
-  if (_wDiffCreep.compare("yes")==0) { _diff->computeInvEffVisc(_T,_ah2o,_sdev,_grainSize); }
+  if (_wDissPrecCreep.compare("yes")==0) { _dp->computeInvEffVisc(_T,_fh2o,_sdev,_grainSize); }
+  if (_wDislCreep.compare("yes")==0) { _disl->computeInvEffVisc(_T,_fh2o,_sdev); }
+  if (_wDiffCreep.compare("yes")==0) { _diff->computeInvEffVisc(_T,_fh2o,_sdev,_grainSize); }
 
   // 1 / effVisc = 1/(plastic eff visc) + 1/(disl eff visc) + 1/(diff eff visc) + 1/(max eff visc)
   VecSet(_effVisc,1.0/_effViscCap);
   if (_wPlasticity.compare("yes")==0) { VecAXPY(_effVisc,1.0,_plastic->_invEffVisc); }
-  if (_wDissPrecCreep.compare("yes")==0) { VecAXPY(_effVisc,1.0,_dp->_invEffVisc); }
+  if (_wDissPrecCreep.compare("yes")==0) {
+    //~ VecAXPY(_effVisc,1.0,_dp->_invEffVisc);
+    //~ PetscPrintf(PETSC_COMM_WORLD,"Warning: dissolution-precipitation creep is not included in effective viscosity computation!\n");
+  }
   if (_wDislCreep.compare("yes")==0) { VecAXPY(_effVisc,1.0,_disl->_invEffVisc); }
   if (_wDiffCreep.compare("yes")==0) { VecAXPY(_effVisc,1.0,_diff->_invEffVisc); }
   VecReciprocal(_effVisc);
@@ -2422,8 +2494,8 @@ PetscErrorCode PowerLaw::guessSteadyStateEffVisc(const PetscScalar strainRate)
   // estimate 1 / (effective viscosity) based on strain rate
   if (_wPlasticity.compare("yes")==0) { _plastic->guessInvEffVisc(strainRate); }
   if (_wDissPrecCreep.compare("yes")==0) { assert(0); } // this requires a nonlinear solve, and may not be wanted
-  if (_wDislCreep.compare("yes")==0) { _disl->guessInvEffVisc(_T,_ah2o,strainRate); }
-  if (_wDiffCreep.compare("yes")==0) { _diff->guessInvEffVisc(_T,_ah2o,strainRate,_grainSize); }
+  if (_wDislCreep.compare("yes")==0) { _disl->guessInvEffVisc(_T,_fh2o,strainRate); }
+  if (_wDiffCreep.compare("yes")==0) { _diff->guessInvEffVisc(_T,_fh2o,strainRate,_grainSize); }
 
   // 1 / effVisc = 1/(plastic eff visc) + 1/(disl eff visc) + 1/(diff eff visc) + 1/(max eff visc)
   VecSet(_effVisc,1.0/_effViscCap);
@@ -2692,7 +2764,7 @@ PetscErrorCode PowerLaw::writeContext(const string outputDir, PetscViewer& viewe
   ierr = VecView(_mu,viewer);                                           CHKERRQ(ierr);
   ierr = VecView(_rho,viewer);                                          CHKERRQ(ierr);
   ierr = VecView(_cs,viewer);                                           CHKERRQ(ierr);
-  ierr = VecView(_ah2o,viewer);                                         CHKERRQ(ierr);
+  ierr = VecView(_fh2o,viewer);                                         CHKERRQ(ierr);
   ierr = VecView(_T,viewer);                                            CHKERRQ(ierr);
   ierr = PetscViewerHDF5PopGroup(viewer);                               CHKERRQ(ierr);
 
@@ -2824,7 +2896,7 @@ double startTime = MPI_Wtime();
   ierr = VecView(_rho,viewer);                                          CHKERRQ(ierr);
   ierr = VecView(_cs,viewer);                                           CHKERRQ(ierr);
   ierr = VecView(_T,viewer);                                            CHKERRQ(ierr);
-  ierr = VecView(_ah2o,viewer);                                         CHKERRQ(ierr);
+  ierr = VecView(_fh2o,viewer);                                         CHKERRQ(ierr);
 
   ierr = VecView(_u,viewer);                                            CHKERRQ(ierr);
   ierr = VecView(_sxy,viewer);                                          CHKERRQ(ierr);
@@ -2904,7 +2976,7 @@ double startTime = MPI_Wtime();
   ierr = VecLoad(_mu,viewer);                                           CHKERRQ(ierr);
   ierr = VecLoad(_rho,viewer);                                          CHKERRQ(ierr);
   ierr = VecLoad(_cs,viewer);                                           CHKERRQ(ierr);
-  ierr = VecLoad(_ah2o,viewer);                                           CHKERRQ(ierr);
+  ierr = VecLoad(_fh2o,viewer);                                           CHKERRQ(ierr);
   ierr = VecLoad(_T,viewer);                                            CHKERRQ(ierr);
 
   ierr = VecLoad(_u,viewer);                                            CHKERRQ(ierr);
@@ -2972,7 +3044,7 @@ double startTime = MPI_Wtime();
   ierr = VecLoad(_mu,viewer);                                           CHKERRQ(ierr);
   ierr = VecLoad(_rho,viewer);                                          CHKERRQ(ierr);
   ierr = VecLoad(_cs,viewer);                                           CHKERRQ(ierr);
-  ierr = VecLoad(_ah2o,viewer);                                         CHKERRQ(ierr);
+  ierr = VecLoad(_fh2o,viewer);                                         CHKERRQ(ierr);
   ierr = PetscViewerHDF5PopGroup(viewer);                               CHKERRQ(ierr);
   if (_wPlasticity.compare("yes")==0) {_plastic->loadCheckpoint(viewer); }
   if (_wDissPrecCreep.compare("yes")==0) { _dp->loadCheckpoint(viewer); }

@@ -159,6 +159,8 @@ PetscErrorCode GrainSizeEvolution::checkInput()
     _grainSizeEvTypeSS.compare("piezometer")==0 );
 
   if (_grainSizeEvType=="piezometer" || _grainSizeEvTypeSS=="piezometer") {
+    assert(_piez_AVals.size() >= 2);
+    assert(_piez_nVals.size() >= 2);
     assert(_piez_AVals.size() == _piez_ADepths.size() );
     assert(_piez_nVals.size() == _piez_nDepths.size() );
   }
@@ -171,6 +173,7 @@ PetscErrorCode GrainSizeEvolution::checkInput()
     assert(_gammaVals.size() >= 2);
     assert(_c > 0);
   }
+
   assert(_AVals.size() == _ADepths.size() );
   assert(_QRVals.size() == _QRDepths.size() );
   assert(_pVals.size() == _pDepths.size() );
@@ -229,8 +232,9 @@ PetscErrorCode GrainSizeEvolution::setMaterialParameters()
 
   // set each field using it's vals and depths std::vectors
   ierr = setVec(_d,*_z,_dVals,_dDepths);                                CHKERRQ(ierr);
-  ierr = setVec(_f,*_z,_fVals,_fDepths);                              CHKERRQ(ierr);
+  ierr = setVec(_f,*_z,_fVals,_fDepths);                                CHKERRQ(ierr);
   VecSet(_d_t,0.);
+
   if (_grainSizeEvType=="transient" || _grainSizeEvType=="steadyState" || _grainSizeEvType=="constant" ||
     _grainSizeEvTypeSS=="transient" ||  _grainSizeEvTypeSS=="steadyState" ||  _grainSizeEvTypeSS=="constant") {
     ierr = setVec(_A,*_z,_AVals,_ADepths);                              CHKERRQ(ierr);
@@ -724,7 +728,7 @@ PetscErrorCode GrainSizeEvolution::loadCheckpoint()
     ierr = PetscViewerHDF5PopGroup(viewer);                             CHKERRQ(ierr);
   }
 
-  ierr = PetscViewerHDF5PushGroup(viewer, "/grainSizeEv");               CHKERRQ(ierr);
+  ierr = PetscViewerHDF5PushGroup(viewer, "/grainSizeEv");              CHKERRQ(ierr);
   ierr = VecLoad(_f, viewer);                                           CHKERRQ(ierr);
   ierr = VecLoad(_d, viewer);                                           CHKERRQ(ierr);
   ierr = VecLoad(_d_t, viewer);                                         CHKERRQ(ierr);
