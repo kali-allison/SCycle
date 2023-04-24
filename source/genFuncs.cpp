@@ -85,10 +85,10 @@ double anyIsnan(const Vec& vec, string str)
   VecGetArrayRead(vec,&val);
   PetscInt Jj = 0;
   for (PetscInt Ii=Istart;Ii<Iend;Ii++) {
-    if (isnan(val[Jj]) || isinf(val[Jj])) {
+    if (std::isnan(val[Jj]) || std::isinf(val[Jj])) {
       PetscPrintf(PETSC_COMM_WORLD,str.c_str());
-      assert(!isnan(val[Jj]));
-      assert(!isinf(val[Jj]));
+      assert(!std::isnan(val[Jj]));
+      assert(!std::isinf(val[Jj]));
     }
     Jj++;
   }
@@ -108,11 +108,11 @@ double changeAnyIsnan(Vec& vec, string str, float newVal)
   VecGetArray(vec,&val);
   PetscInt Jj = 0;
   for (PetscInt Ii=Istart;Ii<Iend;Ii++) {
-    if (isnan(val[Jj]) || isinf(val[Jj])) {
+    if (std::isnan(val[Jj]) || std::isinf(val[Jj])) {
       PetscPrintf(PETSC_COMM_WORLD,str.c_str());
       val[Jj] = newVal;
-      //~ assert(!isnan(val[Jj]));
-      //~ assert(!isinf(val[Jj]));
+      //~ assert(!std::isnan(val[Jj]));
+      //~ assert(!std::isinf(val[Jj]));
     }
     Jj++;
   }
