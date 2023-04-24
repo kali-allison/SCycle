@@ -1223,7 +1223,6 @@ PowerLaw::PowerLaw(Domain& D,std::string bcRType,std::string bcTType,std::string
   }
   if (_wDissPrecCreep == "yes") {
     _dp = new DissolutionPrecipitationCreep(D, *_y,*_z,_file,_delim);
-    PetscPrintf(PETSC_COMM_WORLD,"Warning: dissolution-precipitation creep is not included in effective viscosity computation!\n");
   }
   if (_wDislCreep == "yes") {
     _disl = new DislocationCreep(D, *_y,*_z,_file,_delim);
@@ -2166,10 +2165,7 @@ PetscErrorCode PowerLaw::computeViscosity(const PetscScalar viscCap)
   // 1 / effVisc = 1/(plastic eff visc) + 1/(disl eff visc) + 1/(diff eff visc) + 1/(max eff visc)
   VecSet(_effVisc,1.0/_effViscCap);
   if (_wPlasticity.compare("yes")==0) { VecAXPY(_effVisc,1.0,_plastic->_invEffVisc); }
-  if (_wDissPrecCreep.compare("yes")==0) {
-    //~ VecAXPY(_effVisc,1.0,_dp->_invEffVisc);
-    //~ PetscPrintf(PETSC_COMM_WORLD,"Warning: dissolution-precipitation creep is not included in effective viscosity computation!\n");
-  }
+  if (_wDissPrecCreep.compare("yes")==0) { VecAXPY(_effVisc,1.0,_dp->_invEffVisc); }
   if (_wDislCreep.compare("yes")==0) { VecAXPY(_effVisc,1.0,_disl->_invEffVisc); }
   if (_wDiffCreep.compare("yes")==0) { VecAXPY(_effVisc,1.0,_diff->_invEffVisc); }
   VecReciprocal(_effVisc);
