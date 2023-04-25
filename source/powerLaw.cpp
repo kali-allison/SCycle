@@ -696,7 +696,6 @@ PetscErrorCode DislocationCreep::setMaterialParameters()
   VecDuplicate(*_y,&_n);  setVec(_n,*_z,_nVals,_nDepths); PetscObjectSetName((PetscObject) _n, "n");
   VecDuplicate(*_y,&_r);  setVec(_r,*_z,_rVals,_rDepths); PetscObjectSetName((PetscObject) _r, "r");
 
-  VecView(_n,PETSC_VIEWER_STDOUT_WORLD);
   VecDuplicate(*_y,&_invEffVisc); VecSet(_invEffVisc,1.0);
   PetscObjectSetName((PetscObject) _invEffVisc, "invEffVisc");
 
