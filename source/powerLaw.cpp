@@ -849,7 +849,8 @@ PetscErrorCode DislocationCreep::computeInvEffVisc(const Vec& Temp,const Vec& Wa
   PetscInt Jj = 0;
   for (Ii=Istart;Ii<Iend;Ii++) {
     assert(!std::isnan(s[Jj]));
-    invEffVisc[Jj] = 1e3 * A[Jj] * pow(fh2o[Jj],r[Jj]) * pow(s[Jj],n[Jj]-1.0) * exp(-QR[Jj]/T[Jj]);
+    //invEffVisc[Jj] = 1e3 * A[Jj] * pow(fh2o[Jj],r[Jj]) * pow(s[Jj],n[Jj]-1.0) * exp(-QR[Jj]/T[Jj]);
+    invEffVisc[Jj] = 1e3 * A[Jj] * pow(s[Jj],n[Jj]-1.0) * exp(-QR[Jj]/T[Jj]);
     Jj++;
   }
   VecRestoreArrayRead(sdev,&s);
