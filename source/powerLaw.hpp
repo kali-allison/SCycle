@@ -58,7 +58,7 @@ private:
   DissolutionPrecipitationCreep& operator=(const DissolutionPrecipitationCreep &rhs);
 
   // load settings and set material parameters
-  vector<double>  _BVals,_BDepths,_rVals,_rDepths,_VsVals,_VsDepths,_mVals,_mDepths;
+  vector<double>  _BVals,_BDepths,_DVals,_DDepths,_cVals,_cDepths,_VsVals,_VsDepths,_mVals,_mDepths;
   PetscErrorCode loadSettings(); // load settings from input file
   PetscErrorCode loadFieldsFromFiles();
   PetscErrorCode checkInput(); // check input from file
@@ -70,14 +70,14 @@ public:
   string          _inputDir;
   const Vec      *_y,*_z;
   const float     _R; // (kJ/K/mol) gas constant
-  Vec             _B,_r,_Vs; // diffusion/shape, fluid fugacity exponent, molar volume
+  Vec             _B,_D,_c,_Vs; // diffusion/shape, molar volume
   Vec             _m; // grain size exponent
   Vec             _invEffVisc; // 1 / (effective viscosity)
 
   DissolutionPrecipitationCreep(Domain& D, const Vec& y, const Vec& z, const char *file, const string delim);
   ~DissolutionPrecipitationCreep();
-  PetscErrorCode guessInvEffVisc(const Vec& Temp, const Vec& WaterFugacity, const double dg,const Vec& grainSize);
-  PetscErrorCode computeInvEffVisc(const Vec& Temp, const Vec& WaterFugacity,const Vec& sdev,const Vec& grainSize);
+  PetscErrorCode guessInvEffVisc(const Vec& Temp, const double dg,const Vec& grainSize);
+  PetscErrorCode computeInvEffVisc(const Vec& Temp, const Vec& sdev,const Vec& grainSize);
   PetscErrorCode writeContext(PetscViewer &viewer);
   PetscErrorCode loadCheckpoint(PetscViewer& viewer);
 };
@@ -92,7 +92,7 @@ private:
   DislocationCreep& operator=(const DislocationCreep &rhs);
 
   // load settings and set material parameters
-  vector<double>  _AVals,_ADepths,_rVals,_rDepths,_nVals,_nDepths,_QRVals,_QRDepths;
+  vector<double>  _AVals,_ADepths,_DVals,_DDepths_cVals,_cDepths,_nVals,_nDepths,_QRVals,_QRDepths;
   PetscErrorCode loadSettings(); // load settings from input file
   PetscErrorCode loadFieldsFromFiles();
   PetscErrorCode checkInput(); // check input from file
@@ -108,8 +108,8 @@ public:
 
   DislocationCreep(Domain& D, const Vec& y, const Vec& z, const char *file, const string delim);
   ~DislocationCreep();
-  PetscErrorCode guessInvEffVisc(const Vec& Temp, const Vec& WaterFugacity, const double dg);
-  PetscErrorCode computeInvEffVisc(const Vec& Temp, const Vec& WaterFugacity, const Vec& sdev);
+  PetscErrorCode guessInvEffVisc(const Vec& Temp, const double dg);
+  PetscErrorCode computeInvEffVisc(const Vec& Temp, const Vec& sdev);
   PetscErrorCode writeContext(PetscViewer &viewer);
   PetscErrorCode loadCheckpoint(PetscViewer& viewer);
 };
@@ -140,8 +140,8 @@ public:
 
   DiffusionCreep(Domain& D,const Vec& y, const Vec& z, const char *file, const string delim);
   ~DiffusionCreep();
-  PetscErrorCode guessInvEffVisc(const Vec& Temp, const Vec& WaterFugacity,const double dg,const Vec& grainSize);
-  PetscErrorCode computeInvEffVisc(const Vec& Temp, const Vec& WaterFugacity,const Vec& sdev,const Vec& grainSize);
+  PetscErrorCode guessInvEffVisc(const Vec& Temp, const double dg,const Vec& grainSize);
+  PetscErrorCode computeInvEffVisc(const Vec& Temp, const Vec& sdev,const Vec& grainSize);
   PetscErrorCode writeContext(PetscViewer &viewer);
   PetscErrorCode loadCheckpoint(PetscViewer& viewer);
 };
@@ -176,8 +176,8 @@ class PowerLaw
     DiffusionCreep                    *_diff;
 
     // material properties
-    std::vector<double>   _muVals,_muDepths,_rhoVals,_rhoDepths,_TVals,_TDepths,_fh2oVals,_fh2oDepths,_grainSizeVals,_grainSizeDepths;
-    Vec                   _mu, _rho, _cs,_fh2o,_effVisc;
+    std::vector<double>   _muVals,_muDepths,_rhoVals,_rhoDepths,_TVals,_TDepths,_grainSizeVals,_grainSizeDepths;
+    Vec                   _mu, _rho, _cs,_effVisc;
     Vec                   _T,_grainSize;
     std::vector<double>   _effViscVals_lm,_effViscDepths_lm; // linear Maxwell effective viscosity values
     PetscScalar           _effViscCap; // imposed upper limit on effective viscosity
