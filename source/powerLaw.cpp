@@ -555,7 +555,7 @@ PetscErrorCode DissolutionPrecipitationCreep::computeInvEffVisc(const Vec& Temp,
     PetscScalar expVal = exp(num/RT);
     assert(~std::isnan(expVal));
     assert(~std::isinf(expVal));
-    invEffVisc[Jj] = 1e3 * std::sqrt(3.0) * B[Jj] * D[Jj] * c[Jj] * Vs[Jj] * pow(d[Jj],-m[Jj]) * (expVal - 1.0);
+    invEffVisc[Jj] = 1e3 * 2.0 * std::sqrt(3.0) * B[Jj] * D[Jj] * c[Jj] * Vs[Jj] * pow(d[Jj],-m[Jj]) * (expVal - 1.0);
     Jj++;
   }
   VecRestoreArrayRead(sdev,&s);
