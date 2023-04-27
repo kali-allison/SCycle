@@ -550,7 +550,7 @@ PetscErrorCode DissolutionPrecipitationCreep::computeInvEffVisc(const Vec& Temp,
   PetscInt Jj = 0;
   for (Ii=Istart;Ii<Iend;Ii++) {
     assert(!std::isnan(s[Jj]));
-    PetscScalar num = 3.0*std::sqrt(3.0)*1e3 *Vs[Jj]*s[Jj];
+    PetscScalar num = 3.0*std::sqrt(3.0)*1e-3 *Vs[Jj]*s[Jj];
     PetscScalar RT = _R*T[Jj];
     PetscScalar expVal = exp(num/RT);
     assert(~std::isnan(expVal));
