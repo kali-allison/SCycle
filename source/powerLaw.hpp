@@ -92,7 +92,7 @@ private:
   DislocationCreep& operator=(const DislocationCreep &rhs);
 
   // load settings and set material parameters
-  vector<double>  _AVals,_ADepths,_DVals,_DDepths_cVals,_cDepths,_nVals,_nDepths,_QRVals,_QRDepths;
+  vector<double>  _AVals,_ADepths,_nVals,_nDepths,_QRVals,_QRDepths;
   PetscErrorCode loadSettings(); // load settings from input file
   PetscErrorCode loadFieldsFromFiles();
   PetscErrorCode checkInput(); // check input from file
@@ -103,7 +103,7 @@ public:
   string          _delim;
   string          _inputDir;
   const Vec      *_y,*_z;
-  Vec             _A,_n,_r,_QR;// prefactor, stress exponent,fluid fugacity exponent, activation energy Q divided by gas constant
+  Vec             _A,_n,_QR;// prefactor, stress exponent,activation energy Q divided by gas constant
   Vec             _invEffVisc; // 1 / (effective viscosity)
 
   DislocationCreep(Domain& D, const Vec& y, const Vec& z, const char *file, const string delim);
@@ -124,7 +124,7 @@ private:
   DiffusionCreep& operator=(const DiffusionCreep &rhs);
 
   // load settings and set material parameters
-  vector<double>  _AVals,_ADepths,_QRVals,_QRDepths,_rVals,_rDepths,_nVals,_nDepths,_mVals,_mDepths;
+  vector<double>  _AVals,_ADepths,_QRVals,_QRDepths,_nVals,_nDepths,_mVals,_mDepths;
   PetscErrorCode loadSettings(); // load settings from input file
   PetscErrorCode loadFieldsFromFiles();
   PetscErrorCode checkInput(); // check input from file
@@ -135,7 +135,7 @@ public:
   string          _delim;
   string          _inputDir;
   const Vec      *_y,*_z;
-  Vec             _A,_n,_r,_QR,_m;// prefactor, stress exponent, fluid fugacity exponent, activation energy /R, grain size exponent
+  Vec             _A,_n,_QR,_m;// prefactor, stress exponent, fluid fugacity exponent, activation energy /R, grain size exponent
   Vec             _invEffVisc; // 1 / (effective viscosity)
 
   DiffusionCreep(Domain& D,const Vec& y, const Vec& z, const char *file, const string delim);

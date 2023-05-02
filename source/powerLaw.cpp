@@ -581,7 +581,7 @@ PetscErrorCode DissolutionPrecipitationCreep::computeInvEffVisc(const Vec& Temp,
 
 DislocationCreep::DislocationCreep(Domain& D, const Vec& y, const Vec& z, const char *file, const string delim)
   : _file(file),_delim(delim),_inputDir("unspecified"),_y(&y),_z(&z),
-  _A(NULL),_n(NULL),_r(NULL),_QR(NULL),_invEffVisc(NULL)
+  _A(NULL),_n(NULL),_QR(NULL),_invEffVisc(NULL)
 {
   #if VERBOSE > 1
     string funcName = "DislocationCreep::DislocationCreep";
@@ -609,7 +609,6 @@ DislocationCreep::~DislocationCreep()
 
   VecDestroy(&_A);
   VecDestroy(&_n);
-  VecDestroy(&_r);
   VecDestroy(&_QR);
   VecDestroy(&_invEffVisc);
 
@@ -724,7 +723,6 @@ PetscErrorCode DislocationCreep::loadFieldsFromFiles()
   ierr = loadVecFromInputFile(_A,_inputDir,"disl_A"); CHKERRQ(ierr);
   ierr = loadVecFromInputFile(_QR,_inputDir,"disl_QR"); CHKERRQ(ierr);
   ierr = loadVecFromInputFile(_n,_inputDir,"disl_n"); CHKERRQ(ierr);
-  ierr = loadVecFromInputFile(_r,_inputDir,"disl_r"); CHKERRQ(ierr);
   ierr = loadVecFromInputFile(_invEffVisc,_inputDir,"disl_invEffVisc"); CHKERRQ(ierr);
 
   #if VERBOSE > 1
@@ -749,7 +747,6 @@ PetscErrorCode DislocationCreep::writeContext(PetscViewer &viewer)
   ierr = VecView(_A, viewer);                                           CHKERRQ(ierr);
   ierr = VecView(_QR, viewer);                                          CHKERRQ(ierr);
   ierr = VecView(_n, viewer);                                           CHKERRQ(ierr);
-  ierr = VecView(_r, viewer);                                           CHKERRQ(ierr);
   ierr = PetscViewerHDF5PopGroup(viewer);                               CHKERRQ(ierr);
 
   #if VERBOSE > 1
@@ -773,7 +770,6 @@ PetscErrorCode DislocationCreep::loadCheckpoint(PetscViewer &viewer)
   ierr = VecLoad(_A, viewer);                                           CHKERRQ(ierr);
   ierr = VecLoad(_QR, viewer);                                          CHKERRQ(ierr);
   ierr = VecLoad(_n, viewer);                                           CHKERRQ(ierr);
-  ierr = VecLoad(_r, viewer);                                           CHKERRQ(ierr);
   ierr = PetscViewerHDF5PopGroup(viewer);                               CHKERRQ(ierr);
 
   #if VERBOSE > 1
@@ -837,7 +833,7 @@ PetscErrorCode DislocationCreep::computeInvEffVisc(const Vec& Temp,const Vec& sd
     CHKERRQ(ierr);
   #endif
 
-  PetscScalar const *s,*A,*QR,*r,*n,*T;
+  PetscScalar const *s,*A,*QR,*n,*T;
   PetscScalar *invEffVisc=0;
   PetscInt Ii,Istart,Iend;
   VecGetOwnershipRange(_invEffVisc,&Istart,&Iend);
@@ -845,7 +841,6 @@ PetscErrorCode DislocationCreep::computeInvEffVisc(const Vec& Temp,const Vec& sd
   VecGetArrayRead(_A,&A);
   VecGetArrayRead(_QR,&QR);
   VecGetArrayRead(_n,&n);
-  VecGetArrayRead(_r,&r);
   VecGetArrayRead(Temp,&T);
   VecGetArray(_invEffVisc,&invEffVisc);
   PetscInt Jj = 0;
@@ -874,7 +869,7 @@ PetscErrorCode DislocationCreep::computeInvEffVisc(const Vec& Temp,const Vec& sd
 
 DiffusionCreep::DiffusionCreep(Domain& D, const Vec& y, const Vec& z, const char *file, const string delim)
   : _file(file),_delim(delim),_inputDir("unspecified"),_y(&y),_z(&z),
-  _A(NULL),_n(NULL),_r(NULL),_QR(NULL),_m(NULL),_invEffVisc(NULL)
+  _A(NULL),_n(NULL),_QR(NULL),_m(NULL),_invEffVisc(NULL)
 {
   #if VERBOSE > 1
     string funcName = "DiffusionCreep::DiffusionCreep";
@@ -902,7 +897,6 @@ DiffusionCreep::~DiffusionCreep()
 
   VecDestroy(&_A);
   VecDestroy(&_n);
-  VecDestroy(&_r);
   VecDestroy(&_QR);
   VecDestroy(&_m);
   VecDestroy(&_invEffVisc);
@@ -949,8 +943,6 @@ PetscErrorCode DiffusionCreep::loadSettings()
     else if (var.compare("diff_ADepths")==0) { loadVectorFromInputFile(rhsFull,_ADepths); }
     else if (var.compare("diff_QRVals")==0) { loadVectorFromInputFile(rhsFull,_QRVals); }
     else if (var.compare("diff_QRDepths")==0) { loadVectorFromInputFile(rhsFull,_QRDepths); }
-    else if (var.compare("diff_rVals")==0) { loadVectorFromInputFile(rhsFull,_rVals); }
-    else if (var.compare("diff_rDepths")==0) { loadVectorFromInputFile(rhsFull,_rDepths); }
     else if (var.compare("diff_nVals")==0) { loadVectorFromInputFile(rhsFull,_nVals); }
     else if (var.compare("diff_nDepths")==0) { loadVectorFromInputFile(rhsFull,_nDepths); }
     else if (var.compare("diff_mVals")==0) { loadVectorFromInputFile(rhsFull,_mVals); }
@@ -976,13 +968,11 @@ PetscErrorCode DiffusionCreep::checkInput()
 
     assert(_AVals.size() >= 2);
     assert(_QRVals.size() >= 2);
-    assert(_rVals.size() >= 2);
     assert(_nVals.size() >= 2);
     assert(_mVals.size() >= 2);
     assert(_AVals.size() == _ADepths.size() );
     assert(_QRVals.size() == _QRDepths.size() );
     assert(_nVals.size() == _nDepths.size() );
-    assert(_rVals.size() == _rDepths.size() );
     assert(_mVals.size() == _mDepths.size() );
 
   #if VERBOSE > 1
@@ -1004,7 +994,6 @@ PetscErrorCode DiffusionCreep::setMaterialParameters()
   VecDuplicate(*_y,&_A);  setVec(_A,*_z,_AVals,_ADepths); PetscObjectSetName((PetscObject) _A, "A");
   VecDuplicate(_A,&_QR); setVec(_QR,*_z,_QRVals,_QRDepths); PetscObjectSetName((PetscObject) _QR, "QR");
   VecDuplicate(_A,&_n);  setVec(_n,*_z,_nVals,_nDepths); PetscObjectSetName((PetscObject) _n, "n");
-  VecDuplicate(_A,&_r);  setVec(_r,*_z,_rVals,_rDepths); PetscObjectSetName((PetscObject) _r, "r");
   VecDuplicate(_A,&_m);  setVec(_m,*_z,_mVals,_mDepths); PetscObjectSetName((PetscObject) _m, "m");
 
   VecDuplicate(_A,&_invEffVisc); VecSet(_invEffVisc,1.0); PetscObjectSetName((PetscObject) _invEffVisc, "invEffVisc");
@@ -1028,7 +1017,6 @@ PetscErrorCode DiffusionCreep::loadFieldsFromFiles()
   ierr = loadVecFromInputFile(_A,_inputDir,"diff_A"); CHKERRQ(ierr);
   ierr = loadVecFromInputFile(_QR,_inputDir,"diff_QR"); CHKERRQ(ierr);
   ierr = loadVecFromInputFile(_n,_inputDir,"diff_n"); CHKERRQ(ierr);
-  ierr = loadVecFromInputFile(_r,_inputDir,"diff_r"); CHKERRQ(ierr);
   ierr = loadVecFromInputFile(_m,_inputDir,"diff_m"); CHKERRQ(ierr);
   ierr = loadVecFromInputFile(_invEffVisc,_inputDir,"diff_invEffVisc"); CHKERRQ(ierr);
 
@@ -1053,7 +1041,6 @@ PetscErrorCode DiffusionCreep::writeContext(PetscViewer &viewer)
   ierr = VecView(_A, viewer);                                           CHKERRQ(ierr);
   ierr = VecView(_QR, viewer);                                          CHKERRQ(ierr);
   ierr = VecView(_n, viewer);                                           CHKERRQ(ierr);
-  ierr = VecView(_r, viewer);                                           CHKERRQ(ierr);
   ierr = VecView(_m, viewer);                                           CHKERRQ(ierr);
   ierr = PetscViewerHDF5PopGroup(viewer);                               CHKERRQ(ierr);
 
@@ -1078,7 +1065,6 @@ PetscErrorCode DiffusionCreep::loadCheckpoint(PetscViewer &viewer)
   ierr = VecLoad(_A, viewer);                                           CHKERRQ(ierr);
   ierr = VecLoad(_QR, viewer);                                          CHKERRQ(ierr);
   ierr = VecLoad(_n, viewer);                                           CHKERRQ(ierr);
-  ierr = VecLoad(_r, viewer);                                           CHKERRQ(ierr);
   ierr = VecLoad(_m, viewer);                                           CHKERRQ(ierr);
   ierr = PetscViewerHDF5PopGroup(viewer);                               CHKERRQ(ierr);
 
@@ -1103,7 +1089,7 @@ PetscErrorCode DiffusionCreep::guessInvEffVisc(const Vec& Temp,const double dg,c
     CHKERRQ(ierr);
   #endif
 
-  PetscScalar const *A,*QR,*n,*r,*T,*d,*m;
+  PetscScalar const *A,*QR,*n,*T,*d,*m;
   PetscScalar *invEffVisc;
   PetscInt Ii,Istart,Iend;
   VecGetOwnershipRange(_invEffVisc,&Istart,&Iend);
@@ -1111,7 +1097,6 @@ PetscErrorCode DiffusionCreep::guessInvEffVisc(const Vec& Temp,const double dg,c
   VecGetArrayRead(_A,&A);
   VecGetArrayRead(_QR,&QR);
   VecGetArrayRead(_n,&n);
-  VecGetArrayRead(_r,&r);
   VecGetArrayRead(_m,&m);
   VecGetArrayRead(Temp,&T);
   VecGetArray(_invEffVisc,&invEffVisc);
@@ -1126,7 +1111,6 @@ PetscErrorCode DiffusionCreep::guessInvEffVisc(const Vec& Temp,const double dg,c
   VecRestoreArrayRead(_A,&A);
   VecRestoreArrayRead(_QR,&QR);
   VecRestoreArrayRead(_n,&n);
-  VecRestoreArrayRead(_r,&r);
   VecRestoreArrayRead(_m,&m);
   VecRestoreArrayRead(Temp,&T);
   VecRestoreArray(_invEffVisc,&invEffVisc);
@@ -1148,7 +1132,7 @@ PetscErrorCode DiffusionCreep::computeInvEffVisc(const Vec& Temp,const Vec& sdev
     CHKERRQ(ierr);
   #endif
 
-  PetscScalar const *s,*A,*QR,*n,*r,*T,*d,*m;
+  PetscScalar const *s,*A,*QR,*n,*T,*d,*m;
   PetscScalar *invEffVisc;
   PetscInt Ii,Istart,Iend;
   VecGetOwnershipRange(_invEffVisc,&Istart,&Iend);
@@ -1157,7 +1141,6 @@ PetscErrorCode DiffusionCreep::computeInvEffVisc(const Vec& Temp,const Vec& sdev
   VecGetArrayRead(_A,&A);
   VecGetArrayRead(_QR,&QR);
   VecGetArrayRead(_n,&n);
-  VecGetArrayRead(_r,&r);
   VecGetArrayRead(_m,&m);
   VecGetArrayRead(Temp,&T);
   VecGetArray(_invEffVisc,&invEffVisc);
@@ -1173,7 +1156,6 @@ PetscErrorCode DiffusionCreep::computeInvEffVisc(const Vec& Temp,const Vec& sdev
   VecRestoreArrayRead(_A,&A);
   VecRestoreArrayRead(_QR,&QR);
   VecRestoreArrayRead(_n,&n);
-  VecRestoreArrayRead(_r,&r);
   VecRestoreArrayRead(_m,&m);
   VecRestoreArrayRead(Temp,&T);
   VecRestoreArray(_invEffVisc,&invEffVisc);
