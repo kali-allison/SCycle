@@ -498,10 +498,11 @@ PetscErrorCode DissolutionPrecipitationCreep::guessInvEffVisc(const Vec& Temp,co
   PetscInt Jj = 0;
   for (Ii=Istart;Ii<Iend;Ii++) {
 
-    PetscScalar A = B[Jj] * D[Jj] * c[Jj] * Vs[Jj] * pow(d[Jj],-m[Jj]);
+    PetscScalar A = std::sqrt(3)*B[Jj] * D[Jj] * c[Jj] * Vs[Jj] * pow(d[Jj],-m[Jj]);
     // first 3.0 from equation from Manon and Sandra
-    // 3e3 converts to sdev in MPa and includes (guess) conversion from differential stress to dev stress
-    PetscScalar Q = 3.0*3.0e3*Vs[Jj] / (_R*T[Jj]); // everything in the exponential except deviatoric stress
+    // 3e3 converts to sdev in MPa
+    // sqrt(3) is for conversion from differential stress to dev stress
+    PetscScalar Q = 3.0*std::sqrt(3.0)*1e3*Vs[Jj] / (_R*T[Jj]); // everything in the exponential except deviatoric stress
 
     PetscScalar s = (1.0/Q) * log((1.0/A) * dg + 1.0); // log = natural log
     invEffVisc[Jj] = dg / s;
@@ -550,7 +551,7 @@ PetscErrorCode DissolutionPrecipitationCreep::computeInvEffVisc(const Vec& Temp,
   PetscInt Jj = 0;
   for (Ii=Istart;Ii<Iend;Ii++) {
     assert(!std::isnan(s[Jj]));
-    PetscScalar num = 3.0*std::sqrt(3.0)*1e-3 *Vs[Jj]*s[Jj];
+    PetscScalar num = 3.0*std::sqrt(3.0)*1e3 *Vs[Jj]*s[Jj];
     PetscScalar RT = _R*T[Jj];
     PetscScalar expVal = exp(num/RT);
     assert(~std::isnan(expVal));
