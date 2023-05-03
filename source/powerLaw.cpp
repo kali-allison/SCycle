@@ -1380,7 +1380,7 @@ PetscErrorCode PowerLaw::checkInput()
     _wDiffCreep = "no";
     _wDislCreep = "no";
   }
-  if (_wDiffCreep.compare("yes") == 0) {
+  if (_wDiffCreep.compare("yes") == 0 || _wDissPrecCreep.compare("yes") == 0) {
     assert(_grainSizeVals.size() >= 2);
     assert(_grainSizeVals.size() == _grainSizeDepths.size() );
   }
