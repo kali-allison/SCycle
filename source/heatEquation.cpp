@@ -392,12 +392,12 @@ PetscErrorCode HeatEquation::checkInput()
   assert(_TVals.size() == _TDepths.size() );
   assert(_wVals.size() == _wDepths.size() );
 
-  assert(_TVals.size() >= 2 && _TVals.size() <= 4);
   assert(_TVals.size() == _TDepths.size() );
   assert(_Nz_lab <= _Nz);
   assert(_Lz_lab <= _Lz);
 
   if (_wRadioHeatGen.compare("yes") == 0) {
+    assert(_TVals.size() >= 2 && _TVals.size() <= 4);
     assert(_A0Vals.size() == _A0Depths.size() );
     if (_A0Vals.size() == 0) {
       _A0Vals.push_back(0); _A0Depths.push_back(0);
@@ -544,6 +544,16 @@ PetscErrorCode HeatEquation::computeInitialSteadyStateTemp()
     VecSet(_Tamb,_TVals[0]);
     VecSet(_T,_TVals[0]);
     VecSet(_dT,0.0);
+    return 0;
+  }
+
+  // if no radioactive heat generation, just set Tamb from input TVals and TDepths
+  if (_wRadioHeatGen == "yes") {
+    setVec(_Tamb,*_z,_TVals,_TDepths);
+    // update _T, _dT
+    VecSet(_dT,0.0);
+    VecCopy(_Tamb,_T);
+    PetscPrintf(PETSC_COMM_WORLD,"Creating Tamb purely through .in file inputs.\n");
     return 0;
   }
 
