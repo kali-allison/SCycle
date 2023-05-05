@@ -474,7 +474,7 @@ PetscErrorCode DissolutionPrecipitationCreep::loadCheckpoint(PetscViewer &viewer
 // let Q = 3*Vs / (R*T)
 // dg = A s^n -> s = (dg/A)^(1/n)
 // dg = s / v -> v = s/dg OR 1/v = dg/s
-PetscErrorCode DissolutionPrecipitationCreep::guessInvEffVisc(const Vec& Temp,const double dg,const Vec& grainSize)
+PetscErrorCode DissolutionPrecipitationCreep::guessInvEffVisc(const Vec& Temp,const double dg,const Vec& grainSize, const Vec& WetDistribution)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -483,7 +483,7 @@ PetscErrorCode DissolutionPrecipitationCreep::guessInvEffVisc(const Vec& Temp,co
     CHKERRQ(ierr);
   #endif
 
-  PetscScalar const *B,*D,*c,*Vs,*m,*d,*T;
+  PetscScalar const *B,*D,*c,*Vs,*m,*d,*T,*wetDist;
   PetscScalar *invEffVisc=0;
   PetscInt Ii,Istart,Iend;
   VecGetOwnershipRange(_invEffVisc,&Istart,&Iend);
@@ -494,11 +494,12 @@ PetscErrorCode DissolutionPrecipitationCreep::guessInvEffVisc(const Vec& Temp,co
   VecGetArrayRead(_m,&m);
   VecGetArrayRead(grainSize,&d);
   VecGetArrayRead(Temp,&T);
+  VecGetArrayRead(WetDistribution,&wetDist);
   VecGetArray(_invEffVisc,&invEffVisc);
   PetscInt Jj = 0;
   for (Ii=Istart;Ii<Iend;Ii++) {
 
-    PetscScalar A = std::sqrt(3)*B[Jj] * D[Jj] * c[Jj] * Vs[Jj] * pow(d[Jj],-m[Jj]);
+    PetscScalar A = std::sqrt(3)*B[Jj] * D[Jj] * c[Jj] * Vs[Jj] * pow(d[Jj],-m[Jj]) * wetDist[Jj];
     // first 3.0 from equation from Manon and Sandra
     // 3e3 converts to sdev in MPa
     // sqrt(3) is for conversion from differential stress to dev stress
@@ -516,6 +517,7 @@ PetscErrorCode DissolutionPrecipitationCreep::guessInvEffVisc(const Vec& Temp,co
   VecRestoreArrayRead(_m,&m);
   VecRestoreArrayRead(grainSize,&d);
   VecRestoreArrayRead(Temp,&T);
+  VecRestoreArrayRead(WetDistribution,&wetDist);
   VecRestoreArray(_invEffVisc,&invEffVisc);
 
   #if VERBOSE > 1
@@ -526,7 +528,7 @@ PetscErrorCode DissolutionPrecipitationCreep::guessInvEffVisc(const Vec& Temp,co
 }
 
 // compute 1 / (effective viscosity)
-PetscErrorCode DissolutionPrecipitationCreep::computeInvEffVisc(const Vec& Temp,const Vec& sdev,const Vec& grainSize)
+PetscErrorCode DissolutionPrecipitationCreep::computeInvEffVisc(const Vec& Temp,const Vec& sdev,const Vec& grainSize, const Vec& WetDistribution)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -535,7 +537,7 @@ PetscErrorCode DissolutionPrecipitationCreep::computeInvEffVisc(const Vec& Temp,
     CHKERRQ(ierr);
   #endif
 
-  PetscScalar const *s,*B,*D,*c,*Vs,*m,*d,*T;
+  PetscScalar const *s,*B,*D,*c,*Vs,*m,*d,*T,*wetDist;
   PetscScalar *invEffVisc=0;
   PetscInt Ii,Istart,Iend;
   VecGetOwnershipRange(_invEffVisc,&Istart,&Iend);
@@ -547,6 +549,7 @@ PetscErrorCode DissolutionPrecipitationCreep::computeInvEffVisc(const Vec& Temp,
   VecGetArrayRead(_m,&m);
   VecGetArrayRead(grainSize,&d);
   VecGetArrayRead(Temp,&T);
+  VecGetArrayRead(WetDistribution,&wetDist);
   VecGetArray(_invEffVisc,&invEffVisc);
   PetscInt Jj = 0;
   for (Ii=Istart;Ii<Iend;Ii++) {
@@ -556,7 +559,7 @@ PetscErrorCode DissolutionPrecipitationCreep::computeInvEffVisc(const Vec& Temp,
     PetscScalar expVal = exp(num/RT);
     assert(~std::isnan(expVal));
     assert(~std::isinf(expVal));
-    invEffVisc[Jj] = 1e3 * 2.0 * std::sqrt(3.0) * B[Jj] * D[Jj] * c[Jj] * Vs[Jj] * pow(d[Jj],-m[Jj]) * (expVal - 1.0);
+    invEffVisc[Jj] = 1e3 * 2.0 * std::sqrt(3.0) * B[Jj] * D[Jj] * c[Jj] * Vs[Jj] * pow(d[Jj],-m[Jj]) * wetDist[Jj] * (expVal - 1.0);
     Jj++;
   }
   VecRestoreArrayRead(sdev,&s);
@@ -567,6 +570,7 @@ PetscErrorCode DissolutionPrecipitationCreep::computeInvEffVisc(const Vec& Temp,
   VecRestoreArrayRead(_m,&m);
   VecRestoreArrayRead(grainSize,&d);
   VecRestoreArrayRead(Temp,&T);
+  VecRestoreArrayRead(WetDistribution,&wetDist);
   VecRestoreArray(_invEffVisc,&invEffVisc);
 
   #if VERBOSE > 1
@@ -785,7 +789,7 @@ PetscErrorCode DislocationCreep::loadCheckpoint(PetscViewer &viewer)
 // let A = A exp(-Q/RT) d^-m
 // dg = A s^n -> s = (dg/A)^(1/n)
 // dg = s / v -> v = s/dg OR 1/v = dg/s
-PetscErrorCode DislocationCreep::guessInvEffVisc(const Vec& Temp,const double dg)
+PetscErrorCode DislocationCreep::guessInvEffVisc(const Vec& Temp, const double dg)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -1177,7 +1181,7 @@ PowerLaw::PowerLaw(Domain& D,std::string bcRType,std::string bcTType,std::string
   _order(D._order),_Ny(D._Ny),_Nz(D._Nz),_Ly(D._Ly),_Lz(D._Lz),_y(&D._y),_z(&D._z),
   _isMMS(D._isMMS),_wPlasticity("no"),_wDissPrecCreep("yes"),_wDislCreep("yes"),_wDiffCreep("no"),_wLinearMaxwell("no"),
   _plastic(NULL),_dp(NULL),_disl(NULL),_diff(NULL),
-  _mu(NULL),_rho(NULL),_cs(NULL),_effVisc(NULL),_T(NULL),_grainSize(NULL),_effViscCap(1e16),
+  _mu(NULL),_rho(NULL),_cs(NULL),_effVisc(NULL),_T(NULL),_grainSize(NULL),_wetDist(NULL),_effViscCap(1e16),
   _u(NULL),_surfDisp(NULL),_sxy(NULL),_sxz(NULL),_sdev(NULL),
   _gTxy(NULL),_gVxy(NULL),_dgVxy(NULL),_gTxz(NULL),_gVxz(NULL),_dgVxz(NULL),_dgVdev(NULL),_dgVdev_disl(NULL),
   _linSolverSS("MUMPSCHOLESKY"),_linSolverTrans("MUMPSCHOLESKY"),_bcRType(bcRType),_bcTType(bcTType),_bcLType(bcLType),_bcBType(bcBType),
@@ -1418,6 +1422,7 @@ PetscErrorCode PowerLaw::allocateFields()
   VecDuplicate(_rhs,&_u);        VecSet(_u,0.0);        PetscObjectSetName((PetscObject) _u, "u");
   VecDuplicate(_bcT,&_surfDisp); VecSet(_surfDisp,0.0); PetscObjectSetName((PetscObject) _surfDisp, "surfDisp");
   VecDuplicate(_u,&_effVisc);    VecSet(_effVisc,0.0);  PetscObjectSetName((PetscObject) _effVisc, "effVisc");
+  VecDuplicate(_u,&_wetDist);    VecSet(_wetDist,0.0);  PetscObjectSetName((PetscObject) _wetDist, "wetDist");
 
 
   // allocate space for stress and strain vectors
@@ -1515,6 +1520,7 @@ PetscErrorCode PowerLaw::loadFieldsFromFiles()
 
   ierr = loadVecFromInputFile(_T,_inputDir,"T"); CHKERRQ(ierr);
   ierr = loadVecFromInputFile(_grainSize,_inputDir,"grainSizeEv_d"); CHKERRQ(ierr);
+  ierr = loadVecFromInputFile(_wetDist,_inputDir,"pl_wetDist"); CHKERRQ(ierr);
 
   ierr = loadVecFromInputFile(_gVxy,_inputDir,"GVxy"); CHKERRQ(ierr);
   ierr = loadVecFromInputFile(_gVxz,_inputDir,"GVxz"); CHKERRQ(ierr);
@@ -2129,7 +2135,7 @@ PetscErrorCode PowerLaw::computeViscosity(const PetscScalar viscCap)
 
   // estimate 1 / (effective viscosity) based on strain rate
   if (_wPlasticity.compare("yes")==0) { _plastic->computeInvEffVisc(_dgVdev); }
-  if (_wDissPrecCreep.compare("yes")==0) { _dp->computeInvEffVisc(_T,_sdev,_grainSize); }
+  if (_wDissPrecCreep.compare("yes")==0) { _dp->computeInvEffVisc(_T,_sdev,_grainSize,_wetDist); }
   if (_wDislCreep.compare("yes")==0) { _disl->computeInvEffVisc(_T,_sdev); }
   if (_wDiffCreep.compare("yes")==0) { _diff->computeInvEffVisc(_T,_sdev,_grainSize); }
 
@@ -2733,6 +2739,7 @@ PetscErrorCode PowerLaw::writeContext(const string outputDir, PetscViewer& viewe
   ierr = VecView(_rho,viewer);                                          CHKERRQ(ierr);
   ierr = VecView(_cs,viewer);                                           CHKERRQ(ierr);
   ierr = VecView(_T,viewer);                                            CHKERRQ(ierr);
+  ierr = VecView(_wetDist,viewer);                                            CHKERRQ(ierr);
   ierr = PetscViewerHDF5PopGroup(viewer);                               CHKERRQ(ierr);
 
   if (_wPlasticity.compare("yes")==0) {_plastic->writeContext(viewer); }
@@ -2875,6 +2882,7 @@ double startTime = MPI_Wtime();
   ierr = VecView(_dgVxy,viewer);                                        CHKERRQ(ierr);
   ierr = VecView(_dgVxz,viewer);                                        CHKERRQ(ierr);
   ierr = VecView(_effVisc,viewer);                                      CHKERRQ(ierr);
+  ierr = VecView(_wetDist,viewer);                                      CHKERRQ(ierr);
 
   if (_wPlasticity.compare("yes")==0) {_plastic->writeContext(viewer); }
   if (_wDissPrecCreep.compare("yes")==0) {
@@ -2943,6 +2951,7 @@ double startTime = MPI_Wtime();
   ierr = VecLoad(_rho,viewer);                                          CHKERRQ(ierr);
   ierr = VecLoad(_cs,viewer);                                           CHKERRQ(ierr);
   ierr = VecLoad(_T,viewer);                                            CHKERRQ(ierr);
+  ierr = VecLoad(_wetDist,viewer);                                      CHKERRQ(ierr);
 
   ierr = VecLoad(_u,viewer);                                            CHKERRQ(ierr);
   ierr = VecLoad(_sxy,viewer);                                          CHKERRQ(ierr);
@@ -3039,6 +3048,7 @@ double startTime = MPI_Wtime();
   ierr = VecLoad(_dgVxy,viewer);                                        CHKERRQ(ierr);
   ierr = VecLoad(_dgVxz,viewer);                                        CHKERRQ(ierr);
   ierr = VecLoad(_effVisc,viewer);                                      CHKERRQ(ierr);
+  ierr = VecLoad(_wetDist,viewer);                                      CHKERRQ(ierr);
 
   ierr = PetscViewerHDF5PushGroup(viewer, "/heatEquation");             CHKERRQ(ierr);
   ierr = VecLoad(_T,viewer);                                            CHKERRQ(ierr);

@@ -76,8 +76,8 @@ public:
 
   DissolutionPrecipitationCreep(Domain& D, const Vec& y, const Vec& z, const char *file, const string delim);
   ~DissolutionPrecipitationCreep();
-  PetscErrorCode guessInvEffVisc(const Vec& Temp, const double dg,const Vec& grainSize);
-  PetscErrorCode computeInvEffVisc(const Vec& Temp, const Vec& sdev,const Vec& grainSize);
+  PetscErrorCode guessInvEffVisc(const Vec& Temp, const double dg,const Vec& grainSize, const Vec& WetDistribution);
+  PetscErrorCode computeInvEffVisc(const Vec& Temp, const Vec& sdev,const Vec& grainSize, const Vec& WetDistribution);
   PetscErrorCode writeContext(PetscViewer &viewer);
   PetscErrorCode loadCheckpoint(PetscViewer& viewer);
 };
@@ -179,6 +179,7 @@ class PowerLaw
     std::vector<double>   _muVals,_muDepths,_rhoVals,_rhoDepths,_TVals,_TDepths,_grainSizeVals,_grainSizeDepths;
     Vec                   _mu, _rho, _cs,_effVisc;
     Vec                   _T,_grainSize;
+    Vec                   _wetDist; // range 0-1, determines if enough water is present to activate DP or otherwise wet rheologies
     std::vector<double>   _effViscVals_lm,_effViscDepths_lm; // linear Maxwell effective viscosity values
     PetscScalar           _effViscCap; // imposed upper limit on effective viscosity
 
