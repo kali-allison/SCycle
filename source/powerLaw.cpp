@@ -428,7 +428,7 @@ PetscErrorCode DissolutionPrecipitationCreep::writeContext(PetscViewer &viewer)
   #endif
 
   // write context variables
-  ierr = PetscViewerHDF5PushGroup(viewer, "/momBal/DissolutionPrecipitationCreep");  CHKERRQ(ierr);
+  ierr = PetscViewerHDF5PushGroup(viewer, "/momBal/dissolutionPrecipitationCreep");  CHKERRQ(ierr);
   ierr = VecView(_B, viewer);                                           CHKERRQ(ierr);
   ierr = VecView(_D, viewer);                                           CHKERRQ(ierr);
   ierr = VecView(_c, viewer);                                           CHKERRQ(ierr);
@@ -3018,6 +3018,7 @@ double startTime = MPI_Wtime();
   ierr = VecLoad(_mu,viewer);                                           CHKERRQ(ierr);
   ierr = VecLoad(_rho,viewer);                                          CHKERRQ(ierr);
   ierr = VecLoad(_cs,viewer);                                           CHKERRQ(ierr);
+  ierr = VecLoad(_wetDist,viewer);                                           CHKERRQ(ierr);
   ierr = PetscViewerHDF5PopGroup(viewer);                               CHKERRQ(ierr);
   if (_wPlasticity.compare("yes")==0) {_plastic->loadCheckpoint(viewer); }
   if (_wDissPrecCreep.compare("yes")==0) { _dp->loadCheckpoint(viewer); }
@@ -3048,7 +3049,6 @@ double startTime = MPI_Wtime();
   ierr = VecLoad(_dgVxy,viewer);                                        CHKERRQ(ierr);
   ierr = VecLoad(_dgVxz,viewer);                                        CHKERRQ(ierr);
   ierr = VecLoad(_effVisc,viewer);                                      CHKERRQ(ierr);
-  ierr = VecLoad(_wetDist,viewer);                                      CHKERRQ(ierr);
 
   ierr = PetscViewerHDF5PushGroup(viewer, "/heatEquation");             CHKERRQ(ierr);
   ierr = VecLoad(_T,viewer);                                            CHKERRQ(ierr);
