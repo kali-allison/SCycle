@@ -453,7 +453,7 @@ PetscErrorCode DissolutionPrecipitationCreep::loadCheckpoint(PetscViewer &viewer
   #endif
 
   // write context variables
-  ierr = PetscViewerHDF5PushGroup(viewer, "/momBal/DissolutionPrecipitationCreep");  CHKERRQ(ierr);
+  ierr = PetscViewerHDF5PushGroup(viewer, "/momBal/dissolutionPrecipitationCreep");  CHKERRQ(ierr);
   ierr = VecLoad(_B, viewer);                                           CHKERRQ(ierr);
   ierr = VecLoad(_D, viewer);                                           CHKERRQ(ierr);
   ierr = VecLoad(_c, viewer);                                           CHKERRQ(ierr);
