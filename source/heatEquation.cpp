@@ -548,7 +548,7 @@ PetscErrorCode HeatEquation::computeInitialSteadyStateTemp()
   }
 
   // if no radioactive heat generation, just set Tamb from input TVals and TDepths
-  if (_wRadioHeatGen == "yes") {
+  if (_wRadioHeatGen == "no") {
     setVec(_Tamb,*_z,_TVals,_TDepths);
     // update _T, _dT
     VecSet(_dT,0.0);
