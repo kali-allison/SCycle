@@ -261,6 +261,7 @@ int computeGreensFunction(const char * inputFile)
   // create domain object and write scalar fields into file
   Domain d(inputFile);
   //~ d.write();
+  PetscPrintf(PETSC_COMM_WORLD,"Running computeGreensFunction\n");
 
   // create linear elastic object using domain (includes material properties) specifications
   LinearElastic le(d,"Dirichlet","Neumann","Dirichlet","Neumann");
@@ -272,6 +273,8 @@ int computeGreensFunction(const char * inputFile)
   VecSet(le._bcT,0.0);
   VecSet(le._bcB,0.0);
   VecSet(le._bcR,0.0);
+
+
 
   // prepare matrix to hold greens function
   Mat G;

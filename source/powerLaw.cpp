@@ -1179,7 +1179,7 @@ PetscErrorCode DiffusionCreep::computeInvEffVisc(const Vec& Temp,const Vec& sdev
 PowerLaw::PowerLaw(Domain& D,std::string bcRType,std::string bcTType,std::string bcLType,std::string bcBType)
 : _D(&D),_file(D._file),_delim(D._delim),_inputDir(D._inputDir),_outputDir(D._outputDir),
   _order(D._order),_Ny(D._Ny),_Nz(D._Nz),_Ly(D._Ly),_Lz(D._Lz),_y(&D._y),_z(&D._z),
-  _isMMS(D._isMMS),_wPlasticity("no"),_wDissPrecCreep("yes"),_wDislCreep("yes"),_wDiffCreep("no"),_wLinearMaxwell("no"),
+  _isMMS(D._isMMS),_wPlasticity("no"),_wDissPrecCreep("no"),_wDislCreep("yes"),_wDiffCreep("no"),_wLinearMaxwell("no"),
   _plastic(NULL),_dp(NULL),_disl(NULL),_diff(NULL),
   _mu(NULL),_rho(NULL),_cs(NULL),_effVisc(NULL),_T(NULL),_grainSize(NULL),_wetDist(NULL),_effViscCap(1e16),
   _u(NULL),_surfDisp(NULL),_sxy(NULL),_sxz(NULL),_sdev(NULL),
