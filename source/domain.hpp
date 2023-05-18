@@ -43,6 +43,8 @@ public:
   string         _sbpCompatibilityType; // compatible or fullyCompatible
   string         _gridSpacingType; // variableGridSpacing or constantGridSpacing
   int            _isMMS; // run MMS test or not
+  int            _computeGreensFunction_fault; // run computeGreensFunction_fault instead of earthquake cycle simulations
+  int            _computeGreensFunction_offFault; // run computeGreensFunction_offFault instead of earthquake cycle simulations
 
   // domain properties
   PetscInt     _order; // accuracy of spatial operators

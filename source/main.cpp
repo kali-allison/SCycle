@@ -252,16 +252,17 @@ for (PetscInt Ny = 21; Ny < 82; Ny = (Ny - 1) * 2 + 1)
 }
 
 
-// calculate Green's functions and write to file "G"
+// calculate Green's function mapping fault slip to surface displacement
+// written to file "G"
 // also write bcL and surfDisp into file
-int computeGreensFunction(const char * inputFile)
+int computeGreensFunction_fault(const char * inputFile)
 {
   PetscErrorCode ierr = 0;
 
   // create domain object and write scalar fields into file
   Domain d(inputFile);
   //~ d.write();
-  PetscPrintf(PETSC_COMM_WORLD,"Running computeGreensFunction\n");
+  PetscPrintf(PETSC_COMM_WORLD,"Running computeGreensFunction_fault\n");
 
   // create linear elastic object using domain (includes material properties) specifications
   LinearElastic le(d,"Dirichlet","Neumann","Dirichlet","Neumann");
@@ -281,10 +282,9 @@ int computeGreensFunction(const char * inputFile)
   MatCreateDense(PETSC_COMM_WORLD,PETSC_DECIDE,PETSC_DECIDE,d._Ny,d._Nz,NULL,&G);
   MatSetUp(G);
 
-  PetscInt *rows,*cols;
+  PetscInt *rows;
   PetscMalloc1(d._Ny,&rows);
-  PetscMalloc1(d._Ny,&cols);
-  PetscScalar *si;
+  PetscScalar const *si;
 
   // loop over elements of bcL and compute corresponding entry of G
   PetscScalar v = 1.0;
@@ -302,55 +302,132 @@ int computeGreensFunction(const char * inputFile)
     ierr = le.setSurfDisp();
 
     // assign values to G
-    VecGetArray(le._surfDisp,&si);
+    VecGetArrayRead(le._surfDisp,&si);
     for(PetscInt ind = 0; ind < d._Ny; ind++) {
       rows[ind]=ind;
-    }
-    for(PetscInt ind = 0; ind < d._Ny; ind++) {
-      cols[ind]=Ii;
     }
     MatSetValues(G,d._Ny,rows,1,&Ii,si,INSERT_VALUES);
     MatAssemblyBegin(G,MAT_FINAL_ASSEMBLY);
     MatAssemblyEnd(G,MAT_FINAL_ASSEMBLY);
-    VecRestoreArray(le._bcL,&si);
+    VecRestoreArrayRead(le._bcL,&si);
   }
 
   // output greens function
   string filename;
-  filename =  d._outputDir + "G";
+  filename =  d._outputDir + "G_fault";
   writeMat(G, filename);
-
-/*
-  // output testing stuff
-  VecSet(le._bcL,0.0);
-  VecSet(le._bcR,5.0);
-  for(PetscInt Ii = Istart; Ii < Iend; Ii++) {
-    v = ((PetscScalar) Ii+1)/((PetscScalar) d._Nz);
-    VecSetValue(le._bcL,Ii,v,INSERT_VALUES);
-  }
-
-  // solve for displacement
-  ierr = le._sbp->setRhs(le._rhs,le._bcL,le._bcR,le._bcT,le._bcB);CHKERRQ(ierr);
-  ierr = KSPSolve(le._ksp,le._rhs,le._u);CHKERRQ(ierr);
-  ierr = le.setSurfDisp();
-
-  str =  d._outputDir + "bcL";
-  writeVec(le._bcL,str.c_str());
-
-  str =  d._outputDir + "surfDisp";
-  writeVec(le._surfDisp,str.c_str());
-  */
-
-  // write left boundary condition and surface displacement into file
-  filename =  d._outputDir + "bcL";
-  writeVec(le._bcL, filename);
-  filename =  d._outputDir + "surfDisp";
-  writeVec(le._surfDisp, filename);
 
   // free memory
   MatDestroy(&G);
   PetscFree(rows);
-  PetscFree(cols);
+  return ierr;
+}
+
+// calculate Green's function to map viscous to surface displacement
+// can be used to map viscous strain rate to surface velocity
+int computeGreensFunction_offFault(const char * inputFile)
+{
+  PetscErrorCode ierr = 0;
+
+  // create domain object and write scalar fields into file
+  Domain d(inputFile);
+  PetscPrintf(PETSC_COMM_WORLD,"Running computeGreensFunction_offFault\n");
+
+  // create power law object
+  PowerLaw pl(d,"Dirichlet","Neumann","Dirichlet","Neumann");
+  HeatEquation he(d); // heat equation
+  pl.updateTemperature(he._T);
+
+  // set up KSP context
+  Mat A;
+  pl._sbp->getA(A);
+  pl.setupKSP(pl._ksp,pl._pc,A,pl._linSolverTrans);
+
+  // set up boundaries
+  VecSet(pl._bcR,0.0);
+  VecSet(pl._bcT,0.0);
+  VecSet(pl._bcL,0.0);
+  VecSet(pl._bcB,0.0);
+
+  // initialize source terms
+  Vec viscSource;
+  VecDuplicate(pl._gVxy,&viscSource);
+  VecSet(viscSource,0.0);
+
+  // generate vector viscStrains with size _Ny*_Nz*2 (corresponding to gVxy; gVxz stacked on top of each other
+  Vec viscStrain;
+  ierr = VecCreate(PETSC_COMM_WORLD,&viscStrain); CHKERRQ(ierr);
+  ierr = VecSetSizes(viscStrain,PETSC_DECIDE,d._Ny*d._Nz*2); CHKERRQ(ierr);
+  ierr = VecSetFromOptions(viscStrain); CHKERRQ(ierr);
+  ierr = VecSet(viscStrain,0); CHKERRQ(ierr);
+
+
+  // prepare matrix to hold greens function
+  Mat G;
+  MatCreateDense(PETSC_COMM_WORLD,PETSC_DECIDE,PETSC_DECIDE,d._Ny,d._Ny*d._Nz*2,NULL,&G); // viscous strains as source
+  MatSetUp(G);
+
+  PetscScalar const *si; // will hold surface displacement values
+  PetscInt *rows;
+  PetscMalloc1(d._Ny,&rows);
+  for(PetscInt ind = 0; ind < d._Ny; ind++) {
+    rows[ind]=ind;
+  }
+
+
+  // loop over elements of viscous strains and compute corresponding entry of G
+  PetscScalar v = 1.0;
+  PetscInt Istart,Iend;
+  VecGetOwnershipRange(viscStrain,&Istart,&Iend);
+
+  for(PetscInt Ii = Istart;Ii < Iend;Ii++) {
+    PetscPrintf(PETSC_COMM_WORLD,"Ii = %i\n",Ii);
+    VecSet(pl._gVxy,0.0);
+    VecSet(pl._gVxz,0.0);
+
+    // set just 1 element of either gVxy or gVxz to 1
+    if (Ii < d._Ny*d._Nz) { // then in section of viscStrains that corresponds to gVxy
+      VecSetValue(pl._gVxy,Ii,v,INSERT_VALUES);
+    }
+    else{  // then in section of viscStrains that corresponds to gVxz
+      PetscInt Jj = Ii - d._Ny*d._Nz;
+      VecSetValue(pl._gVxz,Jj,v,INSERT_VALUES);
+    }
+
+    // prepare linear system to solve for surface displacement
+    // compute source terms to rhs: d/dy(mu*gVxy) + d/dz(mu*gVxz)
+    ierr = pl.computeViscStrainSourceTerms(viscSource); CHKERRQ(ierr);
+
+    // set up rhs vector
+    pl.setRHS();
+    ierr = VecAXPY(pl._rhs,1.0,viscSource); CHKERRQ(ierr);
+
+    // solve for displacement (this function also updates surface displacement
+    ierr = pl.computeU(); CHKERRQ(ierr);
+
+    // assign values to G
+    VecGetArrayRead(pl._surfDisp,&si);
+    MatSetValues(G,d._Ny,rows,1,&Ii,si,INSERT_VALUES);
+
+    // finalize assembly of G, return surface
+    MatAssemblyBegin(G,MAT_FINAL_ASSEMBLY);
+    MatAssemblyEnd(G,MAT_FINAL_ASSEMBLY);
+    if (Ii < d._Ny*d._Nz) {
+      VecRestoreArrayRead(pl._gVxy,&si);
+    }
+    else {
+      VecRestoreArrayRead(pl._gVxz,&si);
+    }
+  }
+
+  // output greens function
+  string filename;
+  filename =  d._outputDir + "G_offFault";
+  writeMat(G, filename);
+
+  // free memory
+  MatDestroy(&G);
+  PetscFree(rows);
   return ierr;
 }
 
@@ -412,9 +489,10 @@ int main(int argc,char **args)
   {
     Domain d(inputFile);
     if (d._isMMS) { runMMSTests(inputFile); }
+    else if (d._computeGreensFunction_fault) { computeGreensFunction_fault(inputFile); }
+    else if (d._computeGreensFunction_offFault) { computeGreensFunction_offFault(inputFile); }
     else { runEqCycle(d); }
     //~ testHDF5();
-    //~ computeGreensFunction(inputFile);
     //~ runTests(inputFile);
   }
 

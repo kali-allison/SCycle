@@ -11,7 +11,7 @@ Domain::Domain(const char *file)
   _bulkDeformationType("linearElastic"),
   _momentumBalanceType("quasidynamic"),_systemEvolutionType("transient"),
   _operatorType("matrix-based"),_sbpCompatibilityType("fullyCompatible"),
-  _gridSpacingType("variableGridSpacing"),_isMMS(0),
+  _gridSpacingType("variableGridSpacing"),_isMMS(0),_computeGreensFunction_fault(0),_computeGreensFunction_offFault(0),
   _order(4),_Ny(-1),_Nz(-1),_Ly(-1),_Lz(-1),_vL(1e-9),
   _q(NULL),_r(NULL),_y(NULL),_z(NULL),_y0(NULL),_z0(NULL),_dq(1),_dr(1),
   _bCoordTrans(-1),
@@ -58,7 +58,7 @@ Domain::Domain(const char *file,PetscInt Ny, PetscInt Nz)
   : _file(file),_delim(" = "),_inputDir("unspecified_"),_outputDir("data/"),
   _bulkDeformationType("linearElastic"),_momentumBalanceType("quasidynamic"),_systemEvolutionType("transient"),
   _operatorType("matrix-based"),_sbpCompatibilityType("fullyCompatible"),
-  _gridSpacingType("variableGridSpacing"),_isMMS(0),
+  _gridSpacingType("variableGridSpacing"),_isMMS(0),_computeGreensFunction_fault(0),_computeGreensFunction_offFault(0),
   _order(4),_Ny(Ny),_Nz(Nz),_Ly(-1),_Lz(-1),_vL(1e-9),
   _q(NULL),_r(NULL),_y(NULL),_z(NULL),_y0(NULL),_z0(NULL),_dq(1),_dr(1),
   _bCoordTrans(-1),
@@ -179,6 +179,8 @@ PetscErrorCode Domain::loadSettings(const char *file)
     else if (var.compare("momentumBalanceType")==0) { _momentumBalanceType = rhs; }
     else if (var.compare("systemEvolutionType")==0) { _systemEvolutionType = rhs; }
     else if (var.compare("isMMS") == 0) { _isMMS = atoi(rhs.c_str()); }
+    else if (var.compare("computeGreensFunction_fault") == 0) { _computeGreensFunction_fault = atoi(rhs.c_str()); }
+    else if (var.compare("computeGreensFunction_offFault") == 0) { _computeGreensFunction_offFault = atoi(rhs.c_str()); }
 
 
     else if (var.compare("bCoordTrans")==0) { _bCoordTrans = atof( rhs.c_str() ); }
@@ -322,6 +324,8 @@ PetscErrorCode Domain::write(PetscViewer& viewer_hdf5)
   ierr = PetscViewerASCIIPrintf(viewer,"Lz = %g # (km)\n",_Lz);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"\n");CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"isMMS = %i\n",_isMMS);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"computeGreensFunction_fault = %i\n",_computeGreensFunction_fault);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"computeGreensFunction_offFault = %i\n",_computeGreensFunction_offFault);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"momBalType = %s\n",_momentumBalanceType.c_str());CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"bulkDeformationType = %s\n",_bulkDeformationType.c_str());CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"operatorType = %s\n",_operatorType.c_str());CHKERRQ(ierr);
