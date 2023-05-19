@@ -392,10 +392,14 @@ int computeGreensFunction_offFault(const char * inputFile)
     // set just 1 element of either gVxy or gVxz to 1
     if (Ii < d._Ny*d._Nz) { // then in section of viscStrains that corresponds to gVxy
       VecSetValue(pl._gVxy,Ii,v,INSERT_VALUES);
+      VecAssemblyBegin(pl._gVxy);
+      VecAssemblyEnd(pl._gVxy);
     }
     else{  // then in section of viscStrains that corresponds to gVxz
       PetscInt Jj = Ii - d._Ny*d._Nz;
       VecSetValue(pl._gVxz,Jj,v,INSERT_VALUES);
+      VecAssemblyBegin(pl._gVxz);
+      VecAssemblyEnd(pl._gVxz);
     }
 
     // prepare linear system to solve for surface displacement
