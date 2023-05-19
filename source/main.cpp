@@ -333,6 +333,32 @@ int computeGreensFunction_offFault(const char * inputFile)
   Domain d(inputFile);
   PetscPrintf(PETSC_COMM_WORLD,"Running computeGreensFunction_offFault\n");
 
+  // set up HDF5 file viewer
+  PetscViewer viewer;
+  string outFileName = d._outputDir + "G_offFault.h5";
+  PetscFileMode outputFileMode = FILE_MODE_WRITE;
+  PetscInt startIi = 0;
+  // if file from pervious simulation exists, continue from where previous simulation left off
+  bool fileExists = 0;
+  fileExists = doesFileExist(outFileName);
+  if (fileExists) {
+    PetscPrintf(PETSC_COMM_WORLD,"File exists!\n");
+    outputFileMode = FILE_MODE_APPEND;
+    ierr = PetscViewerHDF5Open(PETSC_COMM_WORLD, outFileName.c_str(), outputFileMode, &viewer);CHKERRQ(ierr);
+    ierr = PetscViewerHDF5SetBaseDimension2(viewer, PETSC_TRUE);CHKERRQ(ierr);
+    ierr = PetscViewerHDF5PushTimestepping(viewer);                     CHKERRQ(ierr);
+    ierr = PetscViewerHDF5ReadAttribute(viewer, "surfDisp", "Ii", PETSC_INT, NULL, &startIi); CHKERRQ(ierr);
+    ierr = PetscViewerHDF5SetTimestep(viewer, startIi + 1); CHKERRQ(ierr);
+    PetscPrintf(PETSC_COMM_WORLD,"Ii = %i\n",startIi);
+  }
+  else {
+    outputFileMode = FILE_MODE_WRITE;
+    ierr = PetscViewerHDF5Open(PETSC_COMM_WORLD, outFileName.c_str(), outputFileMode, &viewer);CHKERRQ(ierr);
+    ierr = PetscViewerHDF5SetBaseDimension2(viewer, PETSC_TRUE);CHKERRQ(ierr);
+    ierr = PetscViewerHDF5PushTimestepping(viewer);                  CHKERRQ(ierr);
+  }
+
+
   // create power law object
   PowerLaw pl(d,"Dirichlet","Neumann","Dirichlet","Neumann");
   HeatEquation he(d); // heat equation
@@ -354,34 +380,12 @@ int computeGreensFunction_offFault(const char * inputFile)
   VecDuplicate(pl._gVxy,&viscSource);
   VecSet(viscSource,0.0);
 
-  // generate vector viscStrains with size _Ny*_Nz*2 (corresponding to gVxy; gVxz stacked on top of each other
-  Vec viscStrain;
-  ierr = VecCreate(PETSC_COMM_WORLD,&viscStrain); CHKERRQ(ierr);
-  ierr = VecSetSizes(viscStrain,PETSC_DECIDE,d._Ny*d._Nz*2); CHKERRQ(ierr);
-  ierr = VecSetFromOptions(viscStrain); CHKERRQ(ierr);
-  ierr = VecSet(viscStrain,0); CHKERRQ(ierr);
-
-
-  // prepare matrix to hold greens function
-  Mat G;
-  MatCreateDense(PETSC_COMM_WORLD,PETSC_DECIDE,PETSC_DECIDE,d._Ny,d._Ny*d._Nz*2,NULL,&G); // viscous strains as source
-  MatSetUp(G);
-
-  PetscScalar const *si; // will hold surface displacement values
-  PetscInt *rows;
-  PetscMalloc1(d._Ny,&rows);
-  for(PetscInt ind = 0; ind < d._Ny; ind++) {
-    rows[ind]=ind;
-  }
-
 
   // loop over elements of viscous strains and compute corresponding entry of G
   PetscScalar v = 1.0;
-  PetscInt Istart,Iend;
-  VecGetOwnershipRange(viscStrain,&Istart,&Iend);
 
-  for(PetscInt Ii = Istart;Ii < Iend;Ii++) {
-    PetscPrintf(PETSC_COMM_WORLD,"Ii = %i\n",Ii);
+  for(PetscInt Ii = startIi; Ii < d._Ny*d._Nz*2;Ii++) {
+    PetscPrintf(PETSC_COMM_WORLD,"Ii = %i...",Ii);
     VecSet(pl._gVxy,0.0);
     VecSet(pl._gVxz,0.0);
 
@@ -402,32 +406,24 @@ int computeGreensFunction_offFault(const char * inputFile)
     pl.setRHS();
     ierr = VecAXPY(pl._rhs,1.0,viscSource); CHKERRQ(ierr);
 
-    // solve for displacement (this function also updates surface displacement
+    // solve for displacement (this function also updates surface displacement)
     ierr = pl.computeU(); CHKERRQ(ierr);
 
     // assign values to G
-    VecGetArrayRead(pl._surfDisp,&si);
-    MatSetValues(G,d._Ny,rows,1,&Ii,si,INSERT_VALUES);
+    //~ VecGetArrayRead(pl._surfDisp,&si);
+    //~ MatSetValues(G,d._Ny,rows,1,&Ii,si,INSERT_VALUES);
 
-    // finalize assembly of G, return surface
-    MatAssemblyBegin(G,MAT_FINAL_ASSEMBLY);
-    MatAssemblyEnd(G,MAT_FINAL_ASSEMBLY);
-    if (Ii < d._Ny*d._Nz) {
-      VecRestoreArrayRead(pl._gVxy,&si);
+    if (Ii > startIi) {
+      ierr = PetscViewerHDF5IncrementTimestep(viewer);                 CHKERRQ(ierr);
     }
-    else {
-      VecRestoreArrayRead(pl._gVxz,&si);
-    }
+    ierr = VecView(pl._surfDisp, viewer);                               CHKERRQ(ierr);
+    ierr = PetscViewerHDF5WriteAttribute(viewer, "surfDisp", "Ii", PETSC_INT, &Ii); CHKERRQ(ierr);
+    ierr = PetscViewerFlush(viewer);                                    CHKERRQ(ierr);
+    PetscPrintf(PETSC_COMM_WORLD,"finished.\n");
   }
 
-  // output greens function
-  string filename;
-  filename =  d._outputDir + "G_offFault";
-  writeMat(G, filename);
-
   // free memory
-  MatDestroy(&G);
-  PetscFree(rows);
+  PetscViewerDestroy(&viewer);
   return ierr;
 }
 
