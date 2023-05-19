@@ -348,7 +348,8 @@ int computeGreensFunction_offFault(const char * inputFile)
     ierr = PetscViewerHDF5SetBaseDimension2(viewer, PETSC_TRUE);CHKERRQ(ierr);
     ierr = PetscViewerHDF5PushTimestepping(viewer);                     CHKERRQ(ierr);
     ierr = PetscViewerHDF5ReadAttribute(viewer, "surfDisp", "Ii", PETSC_INT, NULL, &startIi); CHKERRQ(ierr);
-    ierr = PetscViewerHDF5SetTimestep(viewer, startIi + 1); CHKERRQ(ierr);
+    startIi++;
+    ierr = PetscViewerHDF5SetTimestep(viewer, startIi); CHKERRQ(ierr);
     PetscPrintf(PETSC_COMM_WORLD,"Ii = %i\n",startIi);
   }
   else {
