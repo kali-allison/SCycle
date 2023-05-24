@@ -348,6 +348,7 @@ int computeGreensFunction_offFault(const char * inputFile)
     ierr = PetscViewerHDF5SetBaseDimension2(viewer, PETSC_TRUE);CHKERRQ(ierr);
     ierr = PetscViewerHDF5PushTimestepping(viewer);                     CHKERRQ(ierr);
     ierr = PetscViewerHDF5ReadAttribute(viewer, "surfDisp", "Ii", PETSC_INT, NULL, &startIi); CHKERRQ(ierr);
+    PetscPrintf(PETSC_COMM_WORLD,"previous Ii = %i\n",startIi);
     startIi++;
     ierr = PetscViewerHDF5SetTimestep(viewer, startIi); CHKERRQ(ierr);
     PetscPrintf(PETSC_COMM_WORLD,"Ii = %i\n",startIi);
@@ -381,12 +382,21 @@ int computeGreensFunction_offFault(const char * inputFile)
   VecDuplicate(pl._gVxy,&viscSource);
   VecSet(viscSource,0.0);
 
+  // create small vec to store Ii in, to ensure consistency when job stops and is restarted
+  Vec test;
+  ierr = VecCreate(PETSC_COMM_WORLD,&test); CHKERRQ(ierr);
+  ierr = VecSetSizes(test,PETSC_DECIDE,1); CHKERRQ(ierr);
+  ierr = VecSetFromOptions(test); CHKERRQ(ierr);
+  ierr = PetscObjectSetName((PetscObject) test, "test"); CHKERRQ(ierr);
+
 
   // loop over elements of viscous strains and compute corresponding entry of G
   PetscScalar v = 1.0;
 
-  for(PetscInt Ii = startIi; Ii < d._Ny*d._Nz*2;Ii++) {
+  //~ for(PetscInt Ii = startIi; Ii < d._Ny*d._Nz*2;Ii++) {
+  for(PetscInt Ii = startIi; Ii < startIi+10;Ii++) {
     PetscPrintf(PETSC_COMM_WORLD,"Ii = %i...",Ii);
+    VecSet(test,Ii);
     VecSet(pl._gVxy,0.0);
     VecSet(pl._gVxz,0.0);
 
@@ -417,6 +427,103 @@ int computeGreensFunction_offFault(const char * inputFile)
     // assign values to G
     //~ VecGetArrayRead(pl._surfDisp,&si);
     //~ MatSetValues(G,d._Ny,rows,1,&Ii,si,INSERT_VALUES);
+
+    if (Ii > startIi) {
+      ierr = PetscViewerHDF5IncrementTimestep(viewer);                 CHKERRQ(ierr);
+    }
+    ierr = VecView(pl._surfDisp, viewer);                               CHKERRQ(ierr);
+    ierr = PetscViewerHDF5WriteAttribute(viewer, "surfDisp", "Ii", PETSC_INT, &Ii); CHKERRQ(ierr);
+    ierr = VecView(test, viewer);                               CHKERRQ(ierr);
+    ierr = PetscViewerFlush(viewer);                                    CHKERRQ(ierr);
+    PetscPrintf(PETSC_COMM_WORLD,"finished.\n");
+  }
+
+  // free memory
+  VecDestroy(&test);
+  PetscViewerDestroy(&viewer);
+  return ierr;
+}
+
+
+// test Green's function to map viscous to surface displacement
+// can be used to map viscous strain rate to surface velocity
+int computeGreensFunction_test(const char * inputFile)
+{
+  PetscErrorCode ierr = 0;
+
+  // create domain object and write scalar fields into file
+  Domain d(inputFile);
+  PetscPrintf(PETSC_COMM_WORLD,"Running computeGreensFunction_test\n");
+
+  // set up HDF5 file viewer
+  PetscViewer viewer;
+  string outFileName = d._outputDir + "G_test.h5";
+  PetscFileMode outputFileMode = FILE_MODE_WRITE;
+  PetscInt startIi = 0;
+  // if file from pervious simulation exists, continue from where previous simulation left off
+  bool fileExists = 0;
+  fileExists = doesFileExist(outFileName);
+  if (fileExists) {
+    PetscPrintf(PETSC_COMM_WORLD,"File exists!\n");
+    outputFileMode = FILE_MODE_APPEND;
+    ierr = PetscViewerHDF5Open(PETSC_COMM_WORLD, outFileName.c_str(), outputFileMode, &viewer);CHKERRQ(ierr);
+    ierr = PetscViewerHDF5SetBaseDimension2(viewer, PETSC_TRUE);CHKERRQ(ierr);
+    ierr = PetscViewerHDF5PushTimestepping(viewer);                     CHKERRQ(ierr);
+    ierr = PetscViewerHDF5ReadAttribute(viewer, "surfDisp", "Ii", PETSC_INT, NULL, &startIi); CHKERRQ(ierr);
+    PetscPrintf(PETSC_COMM_WORLD,"previous Ii = %i\n",startIi);
+    startIi++;
+    ierr = PetscViewerHDF5SetTimestep(viewer, startIi); CHKERRQ(ierr);
+    PetscPrintf(PETSC_COMM_WORLD,"Ii = %i\n",startIi);
+  }
+  else {
+    outputFileMode = FILE_MODE_WRITE;
+    ierr = PetscViewerHDF5Open(PETSC_COMM_WORLD, outFileName.c_str(), outputFileMode, &viewer);CHKERRQ(ierr);
+    ierr = PetscViewerHDF5SetBaseDimension2(viewer, PETSC_TRUE);CHKERRQ(ierr);
+    ierr = PetscViewerHDF5PushTimestepping(viewer);                  CHKERRQ(ierr);
+  }
+
+
+  // create power law object
+  PowerLaw pl(d,"Dirichlet","Neumann","Dirichlet","Neumann");
+  //~ HeatEquation he(d); // heat equation
+  //~ pl.updateTemperature(he._T);
+
+  // set up KSP context
+  Mat A;
+  pl._sbp->getA(A);
+  //~ pl.setupKSP(pl._ksp,pl._pc,A,pl._linSolverTrans);
+
+  // set up boundaries
+  VecSet(pl._bcR,0.0);
+  VecSet(pl._bcT,0.0);
+  VecSet(pl._bcL,0.0);
+  VecSet(pl._bcB,0.0);
+
+  // initialize source terms
+  Vec viscSource;
+  VecDuplicate(pl._gVxy,&viscSource);
+  VecSet(viscSource,0.0);
+
+
+  // loop over elements of viscous strains and compute corresponding entry of G
+
+  //~ for(PetscInt Ii = startIi; Ii < d._Ny*d._Nz*2;Ii++) {
+  //~ for(PetscInt Ii = startIi; Ii < 10;Ii++) {
+  for(PetscInt Ii = startIi; Ii < startIi+10;Ii++) {
+    PetscPrintf(PETSC_COMM_WORLD,"Ii = %i...",Ii);
+    VecSet(pl._surfDisp,Ii);
+
+
+    // prepare linear system to solve for surface displacement
+    // compute source terms to rhs: d/dy(mu*gVxy) + d/dz(mu*gVxz)
+    //~ ierr = pl.computeViscStrainSourceTerms(viscSource); CHKERRQ(ierr);
+
+    // set up rhs vector
+    //~ pl.setRHS();
+    //~ ierr = VecAXPY(pl._rhs,1.0,viscSource); CHKERRQ(ierr);
+
+    // solve for displacement (this function also updates surface displacement)
+    //~ ierr = pl.computeU(); CHKERRQ(ierr);
 
     if (Ii > startIi) {
       ierr = PetscViewerHDF5IncrementTimestep(viewer);                 CHKERRQ(ierr);
@@ -489,10 +596,13 @@ int main(int argc,char **args)
 
   {
     Domain d(inputFile);
-    if (d._isMMS) { runMMSTests(inputFile); }
-    else if (d._computeGreensFunction_fault) { computeGreensFunction_fault(inputFile); }
-    else if (d._computeGreensFunction_offFault) { computeGreensFunction_offFault(inputFile); }
-    else { runEqCycle(d); }
+    {
+      computeGreensFunction_offFault(inputFile);
+    }
+    //~ if (d._isMMS) { runMMSTests(inputFile); }
+    //~ else if (d._computeGreensFunction_fault) { computeGreensFunction_fault(inputFile); }
+    //~ else if (d._computeGreensFunction_offFault) { computeGreensFunction_offFault(inputFile); }
+    //~ else { runEqCycle(d); }
     //~ testHDF5();
     //~ runTests(inputFile);
   }
