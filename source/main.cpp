@@ -596,13 +596,10 @@ int main(int argc,char **args)
 
   {
     Domain d(inputFile);
-    {
-      computeGreensFunction_offFault(inputFile);
-    }
-    //~ if (d._isMMS) { runMMSTests(inputFile); }
-    //~ else if (d._computeGreensFunction_fault) { computeGreensFunction_fault(inputFile); }
-    //~ else if (d._computeGreensFunction_offFault) { computeGreensFunction_offFault(inputFile); }
-    //~ else { runEqCycle(d); }
+    if (d._isMMS) { runMMSTests(inputFile); }
+    else if (d._computeGreensFunction_fault) { computeGreensFunction_fault(inputFile); }
+    else if (d._computeGreensFunction_offFault) { computeGreensFunction_offFault(inputFile); }
+    else { runEqCycle(d); }
     //~ testHDF5();
     //~ runTests(inputFile);
   }
