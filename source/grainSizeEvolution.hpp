@@ -78,6 +78,7 @@ class GrainSizeEvolution
     PetscErrorCode initiateIntegrand(const PetscScalar time,map<string,Vec>& varEx,map<string,Vec>& varIm);
     PetscErrorCode updateFields(const PetscScalar time,const map<string,Vec>& varEx);
     PetscErrorCode d_dt(Vec& grainSizeEv_t,const Vec& grainSize,const Vec& sdev, const Vec& dgdev_disl, const Vec& Temp);
+    PetscErrorCode computeMaxTimeStep(PetscScalar& maxTimeStep, const Vec& sdev, const Vec& dgdev_disl, const Vec& Temp);
 
     // compute grain size based on piezometric relation
     PetscErrorCode computeGrainSizeFromPiez(const Vec& sdev, const Vec& dgdev_disl, const Vec& Temp);

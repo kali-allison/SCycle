@@ -328,6 +328,67 @@ PetscErrorCode GrainSizeEvolution::updateFields(const PetscScalar time,const map
   return ierr;
 }
 
+// limited by characteristic timescale of grain size evolution for wattmeter
+PetscErrorCode GrainSizeEvolution::computeMaxTimeStep(PetscScalar& maxTimeStep, const Vec& sdev, const Vec& dgdev_disl, const Vec& Temp)
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    string funcName = "GrainSizeEvolution::computeMaxTimeStep";
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+    CHKERRQ(ierr);
+  #endif
+
+  Vec Tg;
+  ierr = VecDuplicate(_d,&Tg); CHKERRQ(ierr);
+  ierr = VecSet(Tg,0.0); CHKERRQ(ierr);
+
+  const PetscScalar *A,*QR,*p,*T,*f,*g,*s,*dgdev;
+  PetscScalar *tg;
+  PetscInt Ii,Istart,Iend;
+  VecGetOwnershipRange(_d,&Istart,&Iend);
+  VecGetArrayRead(_A,&A);
+  VecGetArrayRead(_QR,&QR);
+  VecGetArrayRead(_p,&p);
+  VecGetArrayRead(Temp,&T);
+  VecGetArrayRead(_f,&f);
+  VecGetArrayRead(_gamma,&g);
+  VecGetArrayRead(sdev,&s);
+  VecGetArrayRead(dgdev_disl,&dgdev);
+  VecGetArray(Tg,&tg);
+  PetscInt Jj = 0;
+  for (Ii=Istart;Ii<Iend;Ii++) {
+    PetscScalar lambda = f[Jj] / (_c * g[Jj] *1e3); // convert g to J/m^2 from kJ/m^2
+    PetscScalar a = A[Jj] * exp(-QR[Jj]/T[Jj]) * (1.0/p[Jj]);
+    PetscScalar b = 0.5 * lambda * (s[Jj]*1e6)*(dgdev[Jj]*1e-3); // convert s to Pa from MPa, convert dgdev to 1/s from milistrain rate
+
+    tg[Jj] = pow(b,-p[Jj]/(p[Jj]+1.0)) * pow(a,-1.0/(p[Jj]+1.0));
+
+    Jj++;
+  }
+  VecRestoreArrayRead(_A,&A);
+  VecRestoreArrayRead(_QR,&QR);
+  VecRestoreArrayRead(_p,&p);
+  VecRestoreArrayRead(Temp,&T);
+  VecRestoreArrayRead(_f,&f);
+  VecRestoreArrayRead(_gamma,&g);
+  VecRestoreArrayRead(sdev,&s);
+  VecRestoreArrayRead(dgdev_disl,&dgdev);
+  VecRestoreArray(Tg,&tg);
+
+  PetscScalar min_Tmax;
+  ierr = VecMin(Tg,NULL,&min_Tmax); CHKERRQ(ierr);
+
+  maxTimeStep = min_Tmax;
+
+  VecDestroy(&Tg);
+
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+    CHKERRQ(ierr);
+  #endif
+  return ierr;
+}
+
 PetscErrorCode GrainSizeEvolution::d_dt(Vec& grainSizeEv_t,const Vec& grainSize,const Vec& sdev, const Vec& dgdev_disl, const Vec& Temp)
 {
   PetscErrorCode ierr = 0;

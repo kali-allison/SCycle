@@ -542,9 +542,18 @@ double startTime = MPI_Wtime();
     if (_hydraulicCoupling.compare("no")!=0) { ierr = _p->writeCheckpoint(_viewer_chkpt);  CHKERRQ(ierr); }
   }
 
+  // ensure time step does not exceed limits: Maxwell time, and characteristic time step of grain size evolution
   PetscScalar maxTimeStep_tot, maxDeltaT_momBal = 0.0;
-  ierr =  _material->computeMaxTimeStep(maxDeltaT_momBal);CHKERRQ(ierr);
+  ierr =  _material->computeMaxTimeStep(maxDeltaT_momBal);              CHKERRQ(ierr);
   maxTimeStep_tot = min(_maxDeltaT,0.9*maxDeltaT_momBal);
+
+  if (_evolveGrainSize == 1 && _grainDist->_grainSizeEvType == "transient") {
+    PetscScalar maxDeltaT_grainSizeEv = 0;
+    ierr =  _grainDist->computeMaxTimeStep(maxDeltaT_grainSizeEv,_material->_sdev,_material->_dgVdev_disl,_material->_T); CHKERRQ(ierr);
+    maxTimeStep_tot = min(_maxDeltaT,0.9*maxDeltaT_grainSizeEv);
+  }
+
+  // communicate maximum allowed time step to time integrator
   if (_timeIntegrator.compare("RK32_WBE")==0 || _timeIntegrator.compare("RK43_WBE")==0) {
     ierr = _quadImex->setTimeStepBounds(_minDeltaT,maxTimeStep_tot);CHKERRQ(ierr);
   }
