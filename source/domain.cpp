@@ -252,6 +252,9 @@ PetscErrorCode Domain::checkInput()
     CHKERRQ(ierr);
   #endif
 
+  assert(_systemEvolutionType.compare("transient") == 0 ||
+    _systemEvolutionType.compare("steadyStateIts") == 0);
+
   assert(_bulkDeformationType.compare("linearElastic") == 0 ||
     _bulkDeformationType.compare("powerLaw") == 0);
 
