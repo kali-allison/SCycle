@@ -429,11 +429,11 @@ int computeGreensFunction_offFault(const char * inputFile)
     //~ MatSetValues(G,d._Ny,rows,1,&Ii,si,INSERT_VALUES);
 
     if (Ii > startIi) {
-      ierr = PetscViewerHDF5IncrementTimestep(viewer);                 CHKERRQ(ierr);
+      ierr = PetscViewerHDF5IncrementTimestep(viewer);                  CHKERRQ(ierr);
     }
     ierr = VecView(pl._surfDisp, viewer);                               CHKERRQ(ierr);
     ierr = PetscViewerHDF5WriteAttribute(viewer, "surfDisp", "Ii", PETSC_INT, &Ii); CHKERRQ(ierr);
-    ierr = VecView(test, viewer);                               CHKERRQ(ierr);
+    ierr = VecView(test, viewer);                                       CHKERRQ(ierr);
     ierr = PetscViewerFlush(viewer);                                    CHKERRQ(ierr);
     PetscPrintf(PETSC_COMM_WORLD,"finished.\n");
   }
