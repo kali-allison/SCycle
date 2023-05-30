@@ -571,13 +571,13 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::computeTimeStep()
     // if user specified both CLF and deltaT
     _deltaT = request_deltaT;
     if (request_deltaT > max_deltaT) {
-      PetscPrintf(PETSC_COMM_WORLD,"Warning: requested deltaT of %g is larger than maximum recommended deltaT of %g\n",max_deltaT);
+      PetscPrintf(PETSC_COMM_WORLD,"Warning: requested deltaT of %g is larger than maximum recommended deltaT of %g\n",request_deltaT,max_deltaT);
     }
   }
 
   _deltaT_fd = _deltaT;
 
-  PetscPrintf(PETSC_COMM_WORLD,"Note: maximum recommended deltaT of %g\n",request_deltaT,max_deltaT);
+  PetscPrintf(PETSC_COMM_WORLD,"Note: maximum recommended deltaT of %g\n",max_deltaT);
 
   #if VERBOSE > 1
      PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
