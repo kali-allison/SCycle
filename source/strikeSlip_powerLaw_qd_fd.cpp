@@ -577,6 +577,8 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::computeTimeStep()
 
   _deltaT_fd = _deltaT;
 
+  PetscPrintf(PETSC_COMM_WORLD,"Note: maximum recommended deltaT of %g\n",request_deltaT,max_deltaT);
+
   #if VERBOSE > 1
      PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
   #endif
