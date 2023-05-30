@@ -37,7 +37,7 @@ HeatEquation::HeatEquation(Domain& D)
   else if (_D->_restartFromChkptSS) { loadCheckpointSS(); }
   else { loadFieldsFromFiles(); }
 
-  if (_D->_restartFromChkpt == 0 &&_loadICs == 0 && _isMMS == 0 ) { computeInitialSteadyStateTemp(); }
+  if (_D->_restartFromChkpt == 0 && _D->_restartFromChkptSS == 0 &&_loadICs == 0 && _isMMS == 0 ) { computeInitialSteadyStateTemp(); }
 
   if (_heatEquationType == "transient" ) { setUpTransientProblem();}
   else if (_heatEquationType == "steadyState" ) { setUpSteadyStateProblem(); }
