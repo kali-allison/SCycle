@@ -107,9 +107,13 @@ double changeAnyIsnan(Vec& vec, string str, float newVal)
   VecGetOwnershipRange(vec,&Istart,&Iend);
   VecGetArray(vec,&val);
   PetscInt Jj = 0;
+  PetscInt hasBeenPrinted = 0;
   for (PetscInt Ii=Istart;Ii<Iend;Ii++) {
     if (std::isnan(val[Jj]) || std::isinf(val[Jj])) {
-      PetscPrintf(PETSC_COMM_WORLD,str.c_str());
+      if (hasbeenPrinted == 0) {
+        PetscPrintf(PETSC_COMM_WORLD,str.c_str());
+        hasBeenPrinted = 1;
+      }
       val[Jj] = newVal;
       //~ assert(!std::isnan(val[Jj]));
       //~ assert(!std::isinf(val[Jj]));
