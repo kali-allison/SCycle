@@ -110,7 +110,7 @@ double changeAnyIsnan(Vec& vec, string str, float newVal)
   PetscInt hasBeenPrinted = 0;
   for (PetscInt Ii=Istart;Ii<Iend;Ii++) {
     if (std::isnan(val[Jj]) || std::isinf(val[Jj])) {
-      if (hasbeenPrinted == 0) {
+      if (hasBeenPrinted == 0) {
         PetscPrintf(PETSC_COMM_WORLD,str.c_str());
         hasBeenPrinted = 1;
       }
