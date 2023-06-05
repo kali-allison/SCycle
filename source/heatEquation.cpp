@@ -2044,14 +2044,13 @@ PetscErrorCode HeatEquation::writeContext(const string outputDir, PetscViewer& v
   ierr = VecView(_Tamb, viewer);                                        CHKERRQ(ierr);
   ierr = VecView(_T, viewer);                                           CHKERRQ(ierr);
   if (_wFrictionalHeating.compare("yes")==0) {
+    PetscPrintf(PETSC_COMM_WORLD,"about to write Gw to file\n");
     ierr = VecView(_Gw, viewer);                                         CHKERRQ(ierr);
+    PetscPrintf(PETSC_COMM_WORLD,"about to write w to file\n");
     VecScale(_w,1e3); // output w in m
     ierr = VecView(_w, viewer);                                         CHKERRQ(ierr);
     VecScale(_w,1e-3); // convert w from m to km
   }
-  //~ if (_wRadioHeatGen.compare("yes")==0) {
-    //~ ierr = VecView(_w, viewer);                                         CHKERRQ(ierr);
-  //~ }
   ierr = PetscViewerHDF5PopGroup(viewer);                               CHKERRQ(ierr);
 
   //~ ierr = _sbp->writeOps(_outputDir + "ops_he_"); CHKERRQ(ierr);

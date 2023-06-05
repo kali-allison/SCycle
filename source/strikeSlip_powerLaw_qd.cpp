@@ -358,13 +358,13 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::computeMinTimeStep()
   }
 
   // print smallest grid spacing
-  PetscScalar min_dy, min_dz;
-  ierr = VecMin(dy,NULL,&min_dy); CHKERRQ(ierr);
-  ierr = VecMin(dz,NULL,&min_dz); CHKERRQ(ierr);
-  PetscScalar min_cs,max_cs;
-  ierr = VecMin(_material->_cs,NULL,&min_cs); CHKERRQ(ierr);
-  ierr = VecMax(_material->_cs,NULL,&max_cs); CHKERRQ(ierr);
-  PetscPrintf(PETSC_COMM_WORLD," input: min_dy = %g, min_dz = %g, min_cs = %g, max_cs = %g\n",min_dy,min_dz,min_cs,max_cs);
+  //~ PetscScalar min_dy, min_dz;
+  //~ ierr = VecMin(dy,NULL,&min_dy); CHKERRQ(ierr);
+  //~ ierr = VecMin(dz,NULL,&min_dz); CHKERRQ(ierr);
+  //~ PetscScalar min_cs,max_cs;
+  //~ ierr = VecMin(_material->_cs,NULL,&min_cs); CHKERRQ(ierr);
+  //~ ierr = VecMax(_material->_cs,NULL,&max_cs); CHKERRQ(ierr);
+  //~ PetscPrintf(PETSC_COMM_WORLD," input: min_dy = %g, min_dz = %g, min_cs = %g, max_cs = %g\n",min_dy,min_dz,min_cs,max_cs);
 
   // compute time for shear wave to travel one dy or dz
   Vec ts_dy,ts_dz;

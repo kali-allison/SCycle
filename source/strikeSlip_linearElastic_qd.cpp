@@ -871,9 +871,9 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::writeContext()
   if (_thermalCoupling!="no") { _he->writeContext(_outputDir, _viewer_context); }
   if (_hydraulicCoupling!="no") { _p->writeContext(_outputDir, _viewer_context); }
   if (_forcingType=="iceStream") {
-    ierr = PetscViewerHDF5PushGroup(viewer, "/momBal");                 CHKERRQ(ierr);
-    ierr = VecView(_forcingTermPlain, viewer);                          CHKERRQ(ierr);
-    ierr = PetscViewerHDF5PopGroup(viewer);                             CHKERRQ(ierr);
+    ierr = PetscViewerHDF5PushGroup(_viewer_context, "/momBal");                 CHKERRQ(ierr);
+    ierr = VecView(_forcingTermPlain, _viewer_context);                          CHKERRQ(ierr);
+    ierr = PetscViewerHDF5PopGroup(_viewer_context);                             CHKERRQ(ierr);
   }
 
   #if VERBOSE > 1
@@ -978,6 +978,12 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::d_dt(const PetscScalar time,const ma
   if (_bcRType=="remoteLoading") {
     ierr = VecSet(_material->_bcR,_vL*time/_faultTypeScale);CHKERRQ(ierr);
     ierr = VecAXPY(_material->_bcR,1.0,_material->_bcRShift);CHKERRQ(ierr);
+  }
+  if (_bcTType=="remoteLoading") {
+    ierr = VecSet(_material->_bcT,_vL*time/_faultTypeScale);CHKERRQ(ierr);
+  }
+  if (_bcBType=="remoteLoading") {
+    ierr = VecSet(_material->_bcB,_vL*time/_faultTypeScale);CHKERRQ(ierr);
   }
 
   _fault->updateFields(time,varEx);
@@ -1090,7 +1096,7 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::solveMomentumBalance(const PetscScal
   if (_isMMS) { _material->addRHS_MMSSource(time,_material->_rhs); }
 
   // add source term for driving the ice stream to rhs Vec
-  if (_forcingType.compare("iceStream")==0) { VecAXPY(_material->_rhs,1.0,_forcingTerm); }
+  if (_forcingType.compare("iceStream")==0) { VecAXPY(_material->_rhs,-1.0,_forcingTerm); }
 
   // compute displacement and stresses
   _material->computeU();
