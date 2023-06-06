@@ -65,6 +65,7 @@ private:
   PetscInt     _cycleCount,_maxNumCycles,_phaseCount;
   PetscScalar  _deltaT, _deltaT_fd, _CFL; // current time step size, time step for fully dynamic, CFL factor
   Vec         *_y,*_z;
+  Vec          _Req; // Req = eta_rad * slipVel / tauQSP, measure of magnitude of radiation damping term
   Vec          _ay;
   Vec          _alphay;
   bool         _inDynamic,_allowed;

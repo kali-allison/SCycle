@@ -733,6 +733,7 @@ PetscErrorCode Fault::guessSS(const PetscScalar vL)
   // set state variable
   if (_stateVals.size() == 0) {
     computePsiSS(vL);
+    PetscPrintf(PETSC_COMM_WORLD,"computing psi based on vL!\n");
   }
 
   // shear stress
@@ -1307,7 +1308,7 @@ PetscErrorCode ComputeVel_qd::getResid(const PetscInt Jj,const PetscScalar vel,P
   *J = A*vel/sqrt(B*B*vel*vel + 1.) + _eta[Jj];
 
   if (std::isinf(*out)) {
-    PetscPrintf(PETSC_COMM_WORLD,"Jj = %g\n",Jj);
+    PetscPrintf(PETSC_COMM_WORLD,"Jj = %i\n",Jj);
     PetscPrintf(PETSC_COMM_WORLD,"strength = %.9e\n",strength);
     PetscPrintf(PETSC_COMM_WORLD,"stress = %.9e\n",stress);
     PetscPrintf(PETSC_COMM_WORLD,"A = %.9e\n",A);

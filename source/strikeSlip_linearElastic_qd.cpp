@@ -619,7 +619,7 @@ bool needToDestroyJjSSVec = 0;
     // initiate Vec to hold index Jj
     VecCreateMPI(PETSC_COMM_WORLD, PETSC_DECIDE, 1, &_JjSSVec);
     VecSetBlockSize(_JjSSVec, 1);
-    PetscObjectSetName((PetscObject) _JjSSVec, "index");
+    PetscObjectSetName((PetscObject) _JjSSVec, "SS_index");
     VecSet(_JjSSVec,Ii);
     needToDestroyJjSSVec = 1;
   }
@@ -1083,7 +1083,15 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::d_dt(const PetscScalar time,const ma
   if (_bcRType=="remoteLoading") {
     ierr = VecSet(_material->_bcR,_vL*time/_faultTypeScale);CHKERRQ(ierr);
     ierr = VecAXPY(_material->_bcR,1.0,_material->_bcRShift);CHKERRQ(ierr);
-    }
+  }
+  if (_bcTType=="remoteLoading") {
+    ierr = VecSet(_material->_bcT,_vL*time/_faultTypeScale);CHKERRQ(ierr);
+    ierr = VecAXPY(_material->_bcT,1.0,_material->_bcTShift);CHKERRQ(ierr);
+  }
+  if (_bcBType=="remoteLoading") {
+    ierr = VecSet(_material->_bcB,_vL*time/_faultTypeScale);CHKERRQ(ierr);
+    ierr = VecAXPY(_material->_bcB,1.0,_material->_bcBShift);CHKERRQ(ierr);
+  }
 
   _fault->updateFields(time,varEx);
 
@@ -1167,7 +1175,7 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::solveSS()
   // initiate Vecs to hold index Jj
   VecCreateMPI(PETSC_COMM_WORLD, PETSC_DECIDE, 1, &_JjSSVec);
   VecSetBlockSize(_JjSSVec, 1);
-  PetscObjectSetName((PetscObject) _JjSSVec, "index");
+  PetscObjectSetName((PetscObject) _JjSSVec, "SS_index");
   VecSet(_JjSSVec,0);
 
   // set up KSP for steady-state solution
@@ -1202,7 +1210,7 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::solveSS()
 
 
   // update boundary conditions, stresses
-  //~ solveSSb();
+  solveSSb();
   _material->changeBCTypes(_mat_bcRType,_mat_bcTType,_mat_bcLType,_mat_bcBType);
 
   // steady state temperature
@@ -1261,7 +1269,7 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::solveSSb()
     VecScatterEnd(_D->_scatters["body2T"], _material->_u, _material->_bcTShift, INSERT_VALUES, SCATTER_FORWARD);
     VecCopy(_material->_bcTShift,_material->_bcT);
   }
-  if (_bcTType=="remoteLoading") {
+  if (_bcBType=="remoteLoading") {
     // extract R boundary from u, to set _material->bcR
     VecScatterBegin(_D->_scatters["body2B"], _material->_u, _material->_bcBShift, INSERT_VALUES, SCATTER_FORWARD);
     VecScatterEnd(_D->_scatters["body2B"], _material->_u, _material->_bcBShift, INSERT_VALUES, SCATTER_FORWARD);

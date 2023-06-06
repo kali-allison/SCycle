@@ -13,7 +13,7 @@ StrikeSlip_LinearElastic_qd_fd::StrikeSlip_LinearElastic_qd_fd(Domain&D)
     _guessSteadyStateICs(0),_forcingType("no"),_faultTypeScale(2.0),
     _evolveTemperature(0),_computeSSTemperature(0),
     _cycleCount(0),_maxNumCycles(1e3),_phaseCount(0),
-    _deltaT(-1), _CFL(-1),_y(&D._y),_z(&D._z),
+    _deltaT(-1), _CFL(-1),_y(&D._y),_z(&D._z),_Req(NULL),
     _inDynamic(false),_allowed(false),
     _trigger_qd2fd(1e-3), _trigger_fd2qd(1e-3),
     _limit_qd(10*_vL), _limit_fd(1e-1),_limit_stride_fd(-1),_u0(NULL),
@@ -122,6 +122,7 @@ StrikeSlip_LinearElastic_qd_fd::~StrikeSlip_LinearElastic_qd_fd()
   VecDestroy(&_dtime1DVec);
   VecDestroy(&_time2DVec);
   VecDestroy(&_dtime2DVec);
+  VecDestroy(&_Req);
 
   delete _quadImex_qd;    _quadImex_qd = NULL;
   delete _quadEx_qd;      _quadEx_qd = NULL;
@@ -400,6 +401,9 @@ PetscErrorCode StrikeSlip_LinearElastic_qd_fd::allocateFields()
 
   ierr = VecDuplicate(_D->_y, &_u0); VecSet(_u0,0.0);
   ierr = PetscObjectSetName((PetscObject) _u0, "u0"); CHKERRQ(ierr);
+
+  ierr = VecDuplicate(_D->_y0, &_Req); VecSet(_Req,0.0);
+  ierr = PetscObjectSetName((PetscObject) _Req, "Req"); CHKERRQ(ierr);
 
 
   #if VERBOSE > 1
@@ -710,21 +714,23 @@ bool StrikeSlip_LinearElastic_qd_fd::checkSwitchRegime(const Fault* fault)
   bool mustSwitch = false;
 
   // if using max slip velocity as switching criteria
-  Vec absSlipVel;
-  VecDuplicate(fault->_slipVel, &absSlipVel);
-  VecCopy(fault->_slipVel, absSlipVel);
-  PetscScalar maxV;
-  VecAbs(absSlipVel);
-  VecMax(absSlipVel, NULL, &maxV);
-  VecDestroy(&absSlipVel);
+  //~ Vec absSlipVel;
+  //~ VecDuplicate(fault->_slipVel, &absSlipVel);
+  //~ VecCopy(fault->_slipVel, absSlipVel);
+  //~ PetscScalar maxV;
+  //~ VecAbs(absSlipVel);
+  //~ VecMax(absSlipVel, NULL, &maxV);
+  //~ VecDestroy(&absSlipVel);
 
   // if using R = eta*V / tauQS
-  //~ Vec R; VecDuplicate(fault->_slipVel,&R);
-  //~ VecPointwiseMult(R,_fault_qd->_eta_rad,fault->_slipVel);
-  //~ VecPointwiseDivide(R,R,fault->_tauQSP);
-  //~ PetscScalar maxV;
-  //~ VecMax(R,NULL,&maxV);
-  //~ VecDestroy(&R);
+  Vec R; VecDuplicate(fault->_slipVel,&R);
+  VecPointwiseMult(R,_fault_qd->_eta_rad,fault->_slipVel);
+  VecPointwiseDivide(R,R,fault->_tauQSP);
+  PetscScalar maxV;
+  VecMax(R,NULL,&maxV);
+  VecCopy(R,_Req);
+  VecDestroy(&R);
+
 
 
   //~ // if integrating past allowed time or step count, force switching now
@@ -1205,7 +1211,7 @@ PetscErrorCode StrikeSlip_LinearElastic_qd_fd::writeSS(const int Ii)
     // initiate Vec to hold index Jj
     VecCreateMPI(PETSC_COMM_WORLD, PETSC_DECIDE, 1, &_JjSSVec);
     VecSetBlockSize(_JjSSVec, 1);
-    PetscObjectSetName((PetscObject) _JjSSVec, "index");
+    PetscObjectSetName((PetscObject) _JjSSVec, "SS_index");
     VecSet(_JjSSVec,Ii);
     needToDestroyJjSSVec = 1;
   }
@@ -1489,9 +1495,9 @@ PetscErrorCode StrikeSlip_LinearElastic_qd_fd::writeContext()
   if (_thermalCoupling.compare("no")!=0) { _he->writeContext(_outputDir, _viewer_context); }
   if (_hydraulicCoupling.compare("no")!=0) { _p->writeContext(_outputDir, _viewer_context); }
   if (_forcingType.compare("iceStream")==0) {
-    ierr = PetscViewerHDF5PushGroup(viewer, "/momBal");                 CHKERRQ(ierr);
-    ierr = VecView(_forcingTermPlain, viewer);                          CHKERRQ(ierr);
-    ierr = PetscViewerHDF5PopGroup(viewer);                             CHKERRQ(ierr);
+    ierr = PetscViewerHDF5PushGroup(_viewer_context, "/momBal");                 CHKERRQ(ierr);
+    ierr = VecView(_forcingTermPlain, _viewer_context);                          CHKERRQ(ierr);
+    ierr = PetscViewerHDF5PopGroup(_viewer_context);                             CHKERRQ(ierr);
   }
 
   #if VERBOSE > 1
@@ -1511,7 +1517,7 @@ PetscErrorCode StrikeSlip_LinearElastic_qd_fd::solveMomentumBalance(const PetscS
   _material->setRHS();
 
   // add source term for driving the ice stream to rhs Vec
-  if (_forcingType.compare("iceStream")==0) { VecAXPY(_material->_rhs,1.0,_forcingTerm); }
+  if (_forcingType.compare("iceStream")==0) { VecAXPY(_material->_rhs,-1.0,_forcingTerm); }
 
   _material->computeU();
   _material->computeStresses();
@@ -1605,7 +1611,7 @@ PetscErrorCode StrikeSlip_LinearElastic_qd_fd::solveSS()
   // initiate Vecs to hold index Jj
   VecCreateMPI(PETSC_COMM_WORLD, PETSC_DECIDE, 1, &_JjSSVec);
   VecSetBlockSize(_JjSSVec, 1);
-  PetscObjectSetName((PetscObject) _JjSSVec, "index");
+  PetscObjectSetName((PetscObject) _JjSSVec, "SS_index");
   VecSet(_JjSSVec,0);
 
   // estimate steady-state conditions for fault, material based on strain rate
@@ -1621,6 +1627,9 @@ PetscErrorCode StrikeSlip_LinearElastic_qd_fd::solveSS()
   _material->setupKSP(_material->_ksp,_material->_pc,A,_material->_linSolverSS);
 
   // compute compute u that satisfies tau at left boundary
+  ierr = VecSet(_material->_bcR,0.0); CHKERRQ(ierr);
+  ierr = VecSet(_material->_bcT,0.0); CHKERRQ(ierr);
+  ierr = VecSet(_material->_bcB,0.0); CHKERRQ(ierr);
   VecCopy(_fault_qd->_tauP,_material->_bcL);
   _material->setRHS();
   _material->computeU();
@@ -1630,8 +1639,9 @@ PetscErrorCode StrikeSlip_LinearElastic_qd_fd::solveSS()
   // update fault to contain correct stresses
   ierr = VecScatterBegin(*_body2fault, _material->_sxy, _fault_qd->_tauQSP, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
   ierr = VecScatterEnd(*_body2fault, _material->_sxy, _fault_qd->_tauQSP, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
+  VecCopy(_fault_qd->_tauQSP,_fault_qd->_tauP);
+  VecCopy(_fault_qd->_tauQSP,_fault_qd->_strength);
 
-  // update boundary conditions, stresses
   solveSSb();
   _material->changeBCTypes(_mat_qd_bcRType,_mat_qd_bcTType,_mat_qd_bcLType,_mat_qd_bcBType);
 
@@ -1689,10 +1699,24 @@ PetscErrorCode StrikeSlip_LinearElastic_qd_fd::solveSSb()
     VecDestroy(&temp);
   }
 
-  // extract R boundary from u, to set _material->bcR
-  VecScatterBegin(_D->_scatters["body2R"], _material->_u, _material->_bcRShift, INSERT_VALUES, SCATTER_FORWARD);
-  VecScatterEnd(_D->_scatters["body2R"], _material->_u, _material->_bcRShift, INSERT_VALUES, SCATTER_FORWARD);
-  VecCopy(_material->_bcRShift,_material->_bcR);
+  if (_qd_bcRType=="remoteLoading") {
+    // extract boundary data from u, to set _material->bcR
+    VecScatterBegin(_D->_scatters["body2R"], _material->_u, _material->_bcRShift, INSERT_VALUES, SCATTER_FORWARD);
+    VecScatterEnd(_D->_scatters["body2R"], _material->_u, _material->_bcRShift, INSERT_VALUES, SCATTER_FORWARD);
+    VecCopy(_material->_bcRShift,_material->_bcR);
+  }
+  if (_qd_bcTType=="remoteLoading") {
+    // extract R boundary from u, to set _material->bcR
+    VecScatterBegin(_D->_scatters["body2T"], _material->_u, _material->_bcTShift, INSERT_VALUES, SCATTER_FORWARD);
+    VecScatterEnd(_D->_scatters["body2T"], _material->_u, _material->_bcTShift, INSERT_VALUES, SCATTER_FORWARD);
+    VecCopy(_material->_bcTShift,_material->_bcT);
+  }
+  if (_qd_bcBType=="remoteLoading") {
+    // extract R boundary from u, to set _material->bcR
+    VecScatterBegin(_D->_scatters["body2B"], _material->_u, _material->_bcBShift, INSERT_VALUES, SCATTER_FORWARD);
+    VecScatterEnd(_D->_scatters["body2B"], _material->_u, _material->_bcBShift, INSERT_VALUES, SCATTER_FORWARD);
+    VecCopy(_material->_bcBShift,_material->_bcB);
+  }
 
   // extract L boundary from u to set slip, possibly _material->_bcL
   Vec uL; VecDuplicate(_material->_bcL,&uL);
@@ -1976,6 +2000,14 @@ PetscErrorCode StrikeSlip_LinearElastic_qd_fd::d_dt(const PetscScalar time,const
     ierr = VecSet(_material->_bcR,_vL*time/_faultTypeScale);CHKERRQ(ierr);
     ierr = VecAXPY(_material->_bcR,1.0,_material->_bcRShift);CHKERRQ(ierr);
   }
+  if (_qd_bcTType=="remoteLoading") {
+    ierr = VecSet(_material->_bcT,_vL*time/_faultTypeScale);CHKERRQ(ierr);
+    ierr = VecAXPY(_material->_bcT,1.0,_material->_bcTShift);CHKERRQ(ierr);
+  }
+  if (_qd_bcBType=="remoteLoading") {
+    ierr = VecSet(_material->_bcB,_vL*time/_faultTypeScale);CHKERRQ(ierr);
+    ierr = VecAXPY(_material->_bcB,1.0,_material->_bcBShift);CHKERRQ(ierr);
+  }
 
   ierr = _fault_qd->updateFields(time,varEx); CHKERRQ(ierr);
 
@@ -2030,6 +2062,14 @@ PetscErrorCode StrikeSlip_LinearElastic_qd_fd::d_dt(const PetscScalar time,const
     ierr = VecSet(_material->_bcR,_vL*time/_faultTypeScale);CHKERRQ(ierr);
     ierr = VecAXPY(_material->_bcR,1.0,_material->_bcRShift);CHKERRQ(ierr);
   }
+  if (_qd_bcTType=="remoteLoading") {
+    ierr = VecSet(_material->_bcT,_vL*time/_faultTypeScale);CHKERRQ(ierr);
+    ierr = VecAXPY(_material->_bcT,1.0,_material->_bcTShift);CHKERRQ(ierr);
+  }
+  if (_qd_bcBType=="remoteLoading") {
+    ierr = VecSet(_material->_bcB,_vL*time/_faultTypeScale);CHKERRQ(ierr);
+    ierr = VecAXPY(_material->_bcB,1.0,_material->_bcBShift);CHKERRQ(ierr);
+  }
 
   ierr = _fault_qd->updateFields(time,varEx); CHKERRQ(ierr);
 
@@ -2039,7 +2079,6 @@ PetscErrorCode StrikeSlip_LinearElastic_qd_fd::d_dt(const PetscScalar time,const
 
   // update temperature in momBal
   if (varImo.find("Temp") != varImo.end() && _thermalCoupling.compare("coupled")==0) {
-    assert(0);
     ierr = _fault_qd->updateTemperature(varImo.find("Temp")->second); CHKERRQ(ierr);
   }
 
@@ -2285,7 +2324,9 @@ double startTime = MPI_Wtime();
     PetscScalar maxVel = 0;
     if(_inDynamic){ VecMax(_fault_fd->_slipVel,NULL,&maxVel); }
     else { VecMax(_fault_qd->_slipVel,NULL,&maxVel); }
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"%i: t = %.15e s, dt = %.5e %s | allowed = %i, maxVel = %.15e\n",stepCount,_currTime,_deltaT,regime.c_str(),_allowed,maxVel);CHKERRQ(ierr);
+    PetscScalar maxReq = 0;
+    VecMax(_Req,NULL,&maxReq);
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"%i: t = %.15e s, dt = %.5e %s | allowed = %i, maxVel = %.15e, maxReq = %.15e\n",stepCount,_currTime,_deltaT,regime.c_str(),_allowed,maxVel,maxReq);CHKERRQ(ierr);
 
     //~ PetscReal maxVel = 0;
     //~ if(_inDynamic){ ierr = VecMax(_fault_fd->_slipVel,NULL,&maxVel); CHKERRQ(ierr); }
