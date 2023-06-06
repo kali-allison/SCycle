@@ -10,6 +10,8 @@ HeatEquation::HeatEquation(Domain& D)
   _heatEquationType("transient"),_isMMS(D._isMMS),_loadICs(0),
   _file(D._file),_inputDir(D._inputDir),_outputDir(D._outputDir),_delim(D._delim),
   _kTz_z0(NULL),_kTz(NULL),_maxdTVec(NULL),
+  _bcRType_ss("Dirichlet"),_bcTType_ss("Dirichlet"),_bcLType_ss("Neumann"),_bcBType_ss("Dirichlet"),
+  _bcRType_trans("Dirichlet"),_bcTType_trans("Dirichlet"),_bcLType_trans("Neumann"),_bcBType_trans("Dirichlet"),
   _wViscShearHeating("yes"),_wFrictionalHeating("yes"),_wRadioHeatGen("yes"),
   _sbp(NULL),
   _bcR(NULL),_bcT(NULL),_bcL(NULL),_bcB(NULL),
@@ -199,6 +201,16 @@ PetscErrorCode HeatEquation::loadSettings(const char *file)
     else if (var.compare("initTime")==0) { _initTime = atof( rhs.c_str() ); }
     else if (var.compare("initDeltaT")==0) { _initDeltaT = atof( rhs.c_str() ); }
 
+    // boundary conditions
+    else if (var.compare("bcRType_ss")==0) { _bcRType_ss = rhs.c_str(); }
+    else if (var.compare("bcTType_ss")==0) { _bcTType_ss = rhs.c_str(); }
+    else if (var.compare("bcLType_ss")==0) { _bcLType_ss = rhs.c_str(); }
+    else if (var.compare("bcBType_ss")==0) { _bcBType_ss = rhs.c_str(); }
+    else if (var.compare("bcRType_trans")==0) { _bcRType_trans = rhs.c_str(); }
+    else if (var.compare("bcTType_trans")==0) { _bcTType_trans = rhs.c_str(); }
+    else if (var.compare("bcLType_trans")==0) { _bcLType_trans = rhs.c_str(); }
+    else if (var.compare("bcBType_trans")==0) { _bcBType_trans = rhs.c_str(); }
+
     // finite width shear zone
     else if (var.compare("wVals")==0) { loadVectorFromInputFile(rhsFull,_wVals); }
     else if (var.compare("wDepths")==0) { loadVectorFromInputFile(rhsFull,_wDepths); }
@@ -385,6 +397,15 @@ PetscErrorCode HeatEquation::checkInput()
 
   assert(_heatEquationType.compare("transient")==0 ||
       _heatEquationType.compare("steadyState")==0 );
+
+  assert(_bcRType_ss == "Dirichlet" || _bcRType_ss == "Neumann");
+  assert(_bcTType_ss == "Dirichlet" || _bcTType_ss == "Neumann");
+  assert(_bcLType_ss == "Dirichlet" || _bcLType_ss == "Neumann");
+  assert(_bcBType_ss == "Dirichlet" || _bcBType_ss == "Neumann");
+  assert(_bcRType_trans == "Dirichlet" || _bcRType_trans == "Neumann");
+  assert(_bcTType_trans == "Dirichlet" || _bcTType_trans == "Neumann");
+  assert(_bcLType_trans == "Dirichlet" || _bcLType_trans == "Neumann");
+  assert(_bcBType_trans == "Dirichlet" || _bcBType_trans == "Neumann");
 
   assert(_kVals.size() == _kDepths.size() );
   assert(_rhoVals.size() == _rhoDepths.size() );
@@ -1590,10 +1611,10 @@ PetscErrorCode HeatEquation::setUpSteadyStateProblem()
   delete _sbp; _sbp = NULL;
 
   // original version
-  string bcRType = "Dirichlet";
-  string bcTType = "Dirichlet";
-  string bcLType = "Neumann";
-  string bcBType = "Dirichlet";
+  //~ string bcRType = "Dirichlet";
+  //~ string bcTType = "Dirichlet";
+  //~ string bcLType = "Neumann";
+  //~ string bcBType = "Dirichlet";
 
   // construct matrices
   if (_D->_gridSpacingType.compare("constantGridSpacing")==0) {
@@ -1610,7 +1631,8 @@ PetscErrorCode HeatEquation::setUpSteadyStateProblem()
     assert(0); // automatically fail
   }
   _sbp->setCompatibilityType(_D->_sbpCompatibilityType);
-  _sbp->setBCTypes(bcRType,bcTType,bcLType,bcBType);
+  //~ _sbp->setBCTypes(bcRType,bcTType,bcLType,bcBType); // original
+  _sbp->setBCTypes(_bcRType_ss,_bcTType_ss,_bcLType_ss,_bcBType_ss);
   _sbp->setMultiplyByH(1);
   _sbp->setLaplaceType("yz");
   _sbp->setDeleteIntermediateFields(1);
@@ -1657,7 +1679,8 @@ PetscErrorCode HeatEquation::setUpTransientProblem()
     assert(0); // automatically fail
   }
   _sbp->setCompatibilityType(_D->_sbpCompatibilityType);
-  _sbp->setBCTypes("Dirichlet","Dirichlet","Neumann","Dirichlet");
+  //~ _sbp->setBCTypes("Dirichlet","Dirichlet","Neumann","Dirichlet"); // original
+  _sbp->setBCTypes(_bcRType_trans,_bcTType_trans,_bcLType_trans,_bcBType_trans); // original
   _sbp->setMultiplyByH(1);
   _sbp->setLaplaceType("yz");
   _sbp->computeMatrices(); // actually create the matrices
@@ -2002,6 +2025,16 @@ PetscErrorCode HeatEquation::writeDomain(const string outputDir)
   ierr = PetscViewerASCIIPrintf(viewer,"withRadioHeatGeneration = %s\n",_wRadioHeatGen.c_str());CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"linSolver_heateq = %s\n",_linSolver.c_str());CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"kspTol_heateq = %.15e\n",_kspTol);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"\n");CHKERRQ(ierr);
+
+  ierr = PetscViewerASCIIPrintf(viewer,"bcRType_ss = %s\n",_bcRType_ss.c_str());CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"bcTType_ss = %s\n",_bcTType_ss.c_str());CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"bcLType_ss = %s\n",_bcLType_ss.c_str());CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"bcBType_ss = %s\n",_bcBType_ss.c_str());CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"bcRType_trans = %s\n",_bcRType_trans.c_str());CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"bcTType_trans = %s\n",_bcTType_trans.c_str());CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"bcLType_trans = %s\n",_bcLType_trans.c_str());CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"bcBType_trans = %s\n",_bcBType_trans.c_str());CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"\n");CHKERRQ(ierr);
 
   ierr = PetscViewerASCIIPrintf(viewer,"Nz_lab = %i\n",_Nz_lab);CHKERRQ(ierr);

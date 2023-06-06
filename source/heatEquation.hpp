@@ -72,6 +72,10 @@ public:
   PetscScalar      _maxdT;
   Vec              _maxdTVec;
 
+  // boundary conditions for steady-state (ss) and transient (trans) problems
+  string _bcRType_ss,_bcTType_ss,_bcLType_ss,_bcBType_ss; // options: Dirichlet, Neumann
+  string _bcRType_trans,_bcTType_trans,_bcLType_trans,_bcBType_trans; // options: Dirichlet, Neumann
+
   // viewers for 1D and 2D fields
   // 1st string = key naming relevant field, e.g. "slip"
   // 2nd PetscViewer = PetscViewer object for file IO
