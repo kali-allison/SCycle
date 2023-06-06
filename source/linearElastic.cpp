@@ -40,7 +40,7 @@ LinearElastic::LinearElastic(Domain&D,string bcRTtype,string bcTTtype,string bcL
     _order(D._order),_Ny(D._Ny),_Nz(D._Nz),
     _Ly(D._Ly),_Lz(D._Lz),_dy(D._dq),_dz(D._dr),_y(&D._y),_z(&D._z),_y0(&D._y0),_z0(&D._z0),
     _isMMS(D._isMMS),
-    _mu(NULL),_rho(NULL),_cs(NULL),_bcRShift(NULL),_surfDisp(NULL),
+    _mu(NULL),_rho(NULL),_cs(NULL),_surfDisp(NULL),_bcRShift(NULL),_bcTShift(NULL),_bcBShift(NULL),
     _rhs(NULL),_u(NULL),_sxy(NULL),_sxz(NULL),_computeSxz(0),_computeSdev(0),
     _linSolverSS("MUMPSCHOLESKY"),_linSolverTrans("MUMPSCHOLESKY"),_ksp(NULL),_pc(NULL),_kspTol(1e-10),
     _sbp(NULL),_kspItNum(0),_myKspCtx(0),_pcIluFill(0.),
@@ -90,6 +90,8 @@ LinearElastic::~LinearElastic()
   VecDestroy(&_bcT);
   VecDestroy(&_bcB);
   VecDestroy(&_bcRShift);
+  VecDestroy(&_bcTShift);
+  VecDestroy(&_bcBShift);
 
   // body fields
   VecDestroy(&_rho);
@@ -418,9 +420,13 @@ PetscErrorCode LinearElastic::allocateFields()
   VecDuplicate(_D->_z0,&_bcT);
   PetscObjectSetName((PetscObject) _bcT, "bcT");
   VecSet(_bcT,0.0);
+  VecDuplicate(_bcT,&_bcTShift); PetscObjectSetName((PetscObject) _bcTShift, "bcTShift");
+  VecSet(_bcTShift,0.0);
 
   VecDuplicate(_bcT,&_bcB); PetscObjectSetName((PetscObject) _bcB, "bcB");
   VecSet(_bcB,0.0);
+  VecDuplicate(_bcB,&_bcBShift); PetscObjectSetName((PetscObject) _bcBShift, "bcBShift");
+  VecSet(_bcBShift,0.0);
 
 
   // other fieds
@@ -866,6 +872,8 @@ PetscErrorCode LinearElastic::writeStep1D(PetscViewer& viewer)
   ierr = VecView(_bcL,viewer);                                          CHKERRQ(ierr);
   ierr = VecView(_bcR,viewer);                                          CHKERRQ(ierr);
   ierr = VecView(_bcRShift,viewer);                                     CHKERRQ(ierr);
+  ierr = VecView(_bcTShift,viewer);                                     CHKERRQ(ierr);
+  ierr = VecView(_bcBShift,viewer);                                     CHKERRQ(ierr);
   ierr = VecView(_bcB,viewer);                                          CHKERRQ(ierr);
   ierr = VecView(_bcT,viewer);                                          CHKERRQ(ierr);
   ierr = PetscViewerHDF5PopTimestepping(viewer);                        CHKERRQ(ierr);

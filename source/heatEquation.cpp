@@ -1589,6 +1589,7 @@ PetscErrorCode HeatEquation::setUpSteadyStateProblem()
 
   delete _sbp; _sbp = NULL;
 
+  // original version
   string bcRType = "Dirichlet";
   string bcTType = "Dirichlet";
   string bcLType = "Neumann";

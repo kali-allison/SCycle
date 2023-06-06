@@ -1296,10 +1296,8 @@ PetscErrorCode ComputeVel_qd::getResid(const PetscInt Jj,const PetscScalar vel,P
 PetscErrorCode ComputeVel_qd::getResid(const PetscInt Jj,const PetscScalar vel,PetscScalar *out,PetscScalar *J)
 {
   PetscErrorCode ierr = 0;
-  // frictional strength
-  PetscScalar strength = strength_psi(_sN[Jj], _psi[Jj], vel, _a[Jj], _v0);
-  // stress on fault
-  PetscScalar stress = _tauQS[Jj] - _eta[Jj]*vel;
+  PetscScalar strength = strength_psi(_sN[Jj], _psi[Jj], vel, _a[Jj], _v0); // frictional strength
+  PetscScalar stress = _tauQS[Jj] - _eta[Jj]*vel; // stress on fault
 
   *out = strength - stress;
   PetscScalar A = _a[Jj]*_sN[Jj];
@@ -1307,6 +1305,15 @@ PetscErrorCode ComputeVel_qd::getResid(const PetscInt Jj,const PetscScalar vel,P
 
   // derivative with respect to slipVel
   *J = A*vel/sqrt(B*B*vel*vel + 1.) + _eta[Jj];
+
+  if (std::isinf(*out)) {
+    PetscPrintf(PETSC_COMM_WORLD,"Jj = %g\n",Jj);
+    PetscPrintf(PETSC_COMM_WORLD,"strength = %.9e\n",strength);
+    PetscPrintf(PETSC_COMM_WORLD,"stress = %.9e\n",stress);
+    PetscPrintf(PETSC_COMM_WORLD,"A = %.9e\n",A);
+    PetscPrintf(PETSC_COMM_WORLD,"B = %.9e\n",B);
+    PetscPrintf(PETSC_COMM_WORLD,"psi = %.9e, a = %.9e, exp(_psi[Jj]/_a[Jj]) = %.9e\n",_psi[Jj],_a[Jj],exp(_psi[Jj]/_a[Jj]));
+  }
 
   assert(!std::isnan(*out));
   assert(!std::isinf(*out));
