@@ -1232,11 +1232,11 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::integrateSS()
 
   // initial guess for (thermo)mechanical problem
   initiateIntegrandSS();
-  if (!_D->_restartFromChkptSS){
+  //~ if (!_D->_restartFromChkptSS){
     solveSS(_SS_index);
     writeSS(_SS_index);
     _SS_index++;
-  }
+  //~ }
 
   // iterate to converge to steady-state solution
   while (_SS_index < _maxSSIts_tot) {
