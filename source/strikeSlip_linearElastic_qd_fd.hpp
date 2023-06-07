@@ -58,9 +58,10 @@ private:
   string       _hydraulicCoupling,_hydraulicTimeIntType; // coupling to hydraulic fault
   string       _stateLaw;
   int          _guessSteadyStateICs; // 0 = no, 1 = yes
+  int          _computeSSMomBal; // 0 = no, 1 = yes, for momentum balance equation only
   string       _forcingType; // what body forcing term to include (i.e. iceStream)
   PetscScalar  _faultTypeScale; // = 2 if symmetric fault, 1 if one side of fault is rigid
-  int          _evolveTemperature,_computeSSTemperature;
+  int          _evolveTemperature,_computeSSHeatEq;
 
   PetscInt     _cycleCount,_maxNumCycles,_phaseCount;
   PetscScalar  _deltaT, _deltaT_fd, _CFL; // current time step size, time step for fully dynamic, CFL factor

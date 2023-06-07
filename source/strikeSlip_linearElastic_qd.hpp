@@ -56,6 +56,7 @@ private:
   string       _hydraulicCoupling,_hydraulicTimeIntType; // coupling to hydraulic fault
   string       _stateLaw;
   int          _guessSteadyStateICs; // 0 = no, 1 = yes
+  int          _computeSSMomBal; // 0 = no, 1 = yes, for momentum balance equation only
   string       _forcingType; // what body forcing term to include (i.e. iceStream)
   PetscScalar  _faultTypeScale; // = 2 if symmetric fault, 1 if one side of fault is rigid
   int           _evolveTemperature,_computeSSHeatEq;
@@ -93,6 +94,8 @@ private:
   // Options: freeSurface, tau, outgoingCharacteristics, remoteLoading, symmFault, rigidFault
   string  _bcRType,_bcTType,_bcLType,_bcBType;
   string  _mat_bcRType,_mat_bcTType,_mat_bcLType,_mat_bcBType;
+  //~ string  _bcRType_ss,_bcTType_ss,_bcLType_ss,_bcBType_ss; // steady-state type
+  //~ string  _bcRType_trans,_bcTType_trans,_bcLType_trans,_bcBType_trans; // steady-state type
 
   // for mapping from body fields to the fault
   VecScatter* _body2fault;

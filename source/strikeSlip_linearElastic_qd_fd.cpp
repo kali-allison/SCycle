@@ -10,8 +10,8 @@ StrikeSlip_LinearElastic_qd_fd::StrikeSlip_LinearElastic_qd_fd(Domain&D)
     _inputDir(D._inputDir),_outputDir(D._outputDir),_vL(1e-9),
     _thermalCoupling("no"),_heatEquationType("transient"),
     _hydraulicCoupling("no"),_hydraulicTimeIntType("explicit"),
-    _guessSteadyStateICs(0),_forcingType("no"),_faultTypeScale(2.0),
-    _evolveTemperature(0),_computeSSTemperature(0),
+    _guessSteadyStateICs(0),_computeSSMomBal(0),_forcingType("no"),_faultTypeScale(2.0),
+    _evolveTemperature(0),_computeSSHeatEq(0),
     _cycleCount(0),_maxNumCycles(1e3),_phaseCount(0),
     _deltaT(-1), _CFL(-1),_y(&D._y),_z(&D._z),_Req(NULL),
     _inDynamic(false),_allowed(false),
@@ -56,7 +56,7 @@ StrikeSlip_LinearElastic_qd_fd::StrikeSlip_LinearElastic_qd_fd(Domain&D)
   _fault_qd = new Fault_qd(D,D._scatters["body2L"],_faultTypeScale); // fault for quasidynamic problem
   _fault_fd = new Fault_fd(D, D._scatters["body2L"],_faultTypeScale); // fault for fully dynamic problem
 
-  if (_evolveTemperature == 1 || _computeSSTemperature == 1) { _he = new HeatEquation(D); }
+  if (_evolveTemperature == 1 || _computeSSHeatEq == 1) { _he = new HeatEquation(D); }
   if (_thermalCoupling != "no" && _stateLaw == "flashHeating") {
     Vec T; VecDuplicate(_D->_y,&T);
     _he->getTemp(T);
@@ -71,7 +71,7 @@ StrikeSlip_LinearElastic_qd_fd::StrikeSlip_LinearElastic_qd_fd(Domain&D)
   }
 
   // initiate momentum balance equation
-  if (_guessSteadyStateICs == 1) { _material = new LinearElastic(D,_mat_qd_bcRType,_mat_qd_bcTType,"Neumann",_mat_qd_bcBType); }
+  if (_guessSteadyStateICs == 1 && _computeSSMomBal == 1) { _material = new LinearElastic(D,_mat_qd_bcRType,_mat_qd_bcTType,"Neumann",_mat_qd_bcBType); }
   else {_material = new LinearElastic(D,_mat_qd_bcRType,_mat_qd_bcTType,_mat_qd_bcLType,_mat_qd_bcBType); }
   computePenaltyVectors();
 
@@ -172,9 +172,10 @@ PetscErrorCode StrikeSlip_LinearElastic_qd_fd::loadSettings(const char *file)
     else if (var.compare("hydraulicCoupling")==0) { _hydraulicCoupling = rhs.c_str(); }
     else if (var.compare("stateLaw")==0) { _stateLaw = rhs.c_str(); }
     else if (var.compare("guessSteadyStateICs")==0) { _guessSteadyStateICs = atoi(rhs.c_str() ); }
+    else if (var.compare("computeSSMomBal")==0) { _computeSSMomBal = atoi( rhs.c_str() ); }
     else if (var.compare("forcingType")==0) { _forcingType = rhs.c_str(); }
     else if (var.compare("evolveTemperature")==0) { _evolveTemperature = (int) atoi( rhs.c_str() ); }
-    else if (var.compare("computeSSHeatEq")==0) { _computeSSTemperature = (int) atoi( rhs.c_str() ); }
+    else if (var.compare("computeSSHeatEq")==0) { _computeSSHeatEq = (int) atoi( rhs.c_str() ); }
 
     // time integration properties
     else if (var.compare("timeIntegrator")==0) { _timeIntegrator = rhs; }
@@ -1427,6 +1428,10 @@ PetscErrorCode StrikeSlip_LinearElastic_qd_fd::writeContext()
   ierr = PetscViewerASCIIPrintf(viewer,"hydraulicCoupling = %s\n",_hydraulicCoupling.c_str());CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"forcingType = %s\n",_forcingType.c_str());CHKERRQ(ierr);
 
+  ierr = PetscViewerASCIIPrintf(viewer,"computeSSMomBal = %i\n",_computeSSMomBal);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"evolveTemperature = %i\n",_evolveTemperature);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"computeSSHeatEq = %i\n",_computeSSHeatEq);CHKERRQ(ierr);
+
   ierr = PetscViewerASCIIPrintf(viewer,"vL = %g\n",_vL);CHKERRQ(ierr);
 
   // time integration settings
@@ -1475,6 +1480,7 @@ PetscErrorCode StrikeSlip_LinearElastic_qd_fd::writeContext()
   ierr = PetscViewerASCIIPrintf(viewer,"momBal_bcT_fd = %s\n",_fd_bcTType.c_str());CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"momBal_bcL_fd = %s\n",_fd_bcLType.c_str());CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"momBal_bcB_fd = %s\n",_fd_bcBType.c_str());CHKERRQ(ierr);
+
 
   ierr = PetscViewerASCIIPrintf(viewer,"faultTypeScale = %g\n",_faultTypeScale);CHKERRQ(ierr);
 
@@ -1621,38 +1627,40 @@ PetscErrorCode StrikeSlip_LinearElastic_qd_fd::solveSS()
   // output initial conditions, mostly for debugging purposes
   writeSS(0);
 
-  // set up KSP for steady-state solution
-  Mat A;
-  _material->_sbp->getA(A);
-  _material->setupKSP(_material->_ksp,_material->_pc,A,_material->_linSolverSS);
+  // steady state momentum balance equation
+  if (_computeSSMomBal == 1) {
+    // set up KSP for steady-state solution
+    Mat A;
+    _material->_sbp->getA(A);
+    _material->setupKSP(_material->_ksp,_material->_pc,A,_material->_linSolverSS);
 
-  // compute compute u that satisfies tau at left boundary
-  ierr = VecSet(_material->_bcR,0.0); CHKERRQ(ierr);
-  ierr = VecSet(_material->_bcT,0.0); CHKERRQ(ierr);
-  ierr = VecSet(_material->_bcB,0.0); CHKERRQ(ierr);
-  VecCopy(_fault_qd->_tauP,_material->_bcL);
-  _material->setRHS();
-  _material->computeU();
-  _material->computeStresses();
+    // compute compute u that satisfies tau at left boundary
+    ierr = VecSet(_material->_bcR,0.0); CHKERRQ(ierr);
+    ierr = VecSet(_material->_bcT,0.0); CHKERRQ(ierr);
+    ierr = VecSet(_material->_bcB,0.0); CHKERRQ(ierr);
+    VecCopy(_fault_qd->_tauP,_material->_bcL);
+    _material->setRHS();
+    _material->computeU();
+    _material->computeStresses();
 
+    // update fault to contain correct stresses
+    ierr = VecScatterBegin(*_body2fault, _material->_sxy, _fault_qd->_tauQSP, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
+    ierr = VecScatterEnd(*_body2fault, _material->_sxy, _fault_qd->_tauQSP, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
+    VecCopy(_fault_qd->_tauQSP,_fault_qd->_tauP);
+    VecCopy(_fault_qd->_tauQSP,_fault_qd->_strength);
 
-  // update fault to contain correct stresses
-  ierr = VecScatterBegin(*_body2fault, _material->_sxy, _fault_qd->_tauQSP, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
-  ierr = VecScatterEnd(*_body2fault, _material->_sxy, _fault_qd->_tauQSP, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
-  VecCopy(_fault_qd->_tauQSP,_fault_qd->_tauP);
-  VecCopy(_fault_qd->_tauQSP,_fault_qd->_strength);
+    solveSSb();
+    _material->changeBCTypes(_mat_qd_bcRType,_mat_qd_bcTType,_mat_qd_bcLType,_mat_qd_bcBType);
 
-  solveSSb();
-  _material->changeBCTypes(_mat_qd_bcRType,_mat_qd_bcTType,_mat_qd_bcLType,_mat_qd_bcBType);
+    KSPDestroy(&_material->_ksp);
+  }
 
   // steady state temperature
-  if (_computeSSTemperature) {
+  if (_computeSSHeatEq) {
     Vec T; VecDuplicate(_material->_sxy,&T);
     _he->computeSteadyStateTemp(_currTime,_fault_qd->_slipVel,_fault_qd->_tauP,NULL,NULL,T);
     VecDestroy(&T);
   }
-
-  KSPDestroy(&_material->_ksp);
 
   // update fault_fd to contain new steady-state fault_qd data as well
   VecCopy(_fault_qd->_psi,      _fault_fd->_psi);
