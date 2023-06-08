@@ -1232,18 +1232,15 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::integrateSS()
 
   // initial guess for (thermo)mechanical problem
   initiateIntegrandSS();
-  //~ if (!_D->_restartFromChkptSS){
+  if (!_D->_restartFromChkptSS){
     solveSS(_SS_index);
     writeSS(_SS_index);
     _SS_index++;
-  //~ }
+  }
 
   // iterate to converge to steady-state solution
   while (_SS_index < _maxSSIts_tot) {
     PetscPrintf(PETSC_COMM_WORLD,"Jj = %i\n",_SS_index);
-
-    // brute force time integrate for steady-state shear stress the fault
-    solveSStau(_SS_index);
 
     // iterate to find effective viscosity etc
     solveSSViscoelasticProblem(_SS_index);
@@ -1257,6 +1254,9 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::integrateSS()
 
     writeSS(_SS_index);
     _SS_index++;
+
+    // brute force time integrate for steady-state shear stress the fault
+    solveSStau(_SS_index);
   }
 
 
