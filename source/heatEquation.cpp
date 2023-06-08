@@ -1957,7 +1957,6 @@ PetscErrorCode HeatEquation::loadCheckpointSS()
 
   fileName = _outputDir + "data_steadyState.h5";
   ierr = PetscViewerHDF5Open(PETSC_COMM_WORLD, fileName.c_str(), FILE_MODE_READ, &viewer);CHKERRQ(ierr);
-  ierr = PetscViewerHDF5PushTimestepping(viewer);                       CHKERRQ(ierr);
   ierr = PetscViewerHDF5PushGroup(viewer, "/heatEquation");             CHKERRQ(ierr);
 
   ierr = VecLoad(_bcR,viewer);                                          CHKERRQ(ierr);
