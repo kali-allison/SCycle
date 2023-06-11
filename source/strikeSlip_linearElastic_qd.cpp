@@ -56,8 +56,16 @@ StrikeSlip_LinearElastic_qd::StrikeSlip_LinearElastic_qd(Domain &D)
   else if (_hydraulicCoupling == "coupled") { _fault->setSNEff(_p->_p); }
 
   // initiate momentum balance equation
-  if (_guessSteadyStateICs == 1 && _computeSSMomBal==1) { _material = new LinearElastic(D,_mat_bcRType,_mat_bcTType,"Neumann",_mat_bcBType); }
-  else { _material = new LinearElastic(D,_mat_bcRType,_mat_bcTType,_mat_bcLType,_mat_bcBType); }
+  if (_guessSteadyStateICs == 1 && _computeSSMomBal==1 && _forcingType != "iceStream") {
+    _material = new LinearElastic(D,_mat_bcRType,_mat_bcTType,"Neumann",_mat_bcBType);
+  }
+  else if (_guessSteadyStateICs == 1 && _computeSSMomBal==1 && _forcingType == "iceStream") {
+    // treat fault as Dirichlet boundary condition if including body force for ice stream
+    _material = new LinearElastic(D,_mat_bcRType,_mat_bcTType,"Dirichlet",_mat_bcBType);
+  }
+  else {
+    _material = new LinearElastic(D,_mat_bcRType,_mat_bcTType,_mat_bcLType,_mat_bcBType);
+  }
 
   // body forcing term for ice stream
   _forcingTerm = NULL;
@@ -502,7 +510,10 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::timeMonitor(PetscScalar time, PetscS
 
   _writeTime += MPI_Wtime() - startTime;
   #if VERBOSE > 0
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"%i: t = %.15e s, dt = %.5e\n",stepCount,_currTime,_deltaT);CHKERRQ(ierr);
+    PetscScalar maxVel = 0, maxTau = 0;
+    VecMax(_fault->_slipVel,NULL,&maxVel);
+    VecMax(_fault->_strength,NULL,&maxTau);
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"%i: t = %.15e s, dt = %.5e, maxVel = %.5e, maxTau = %.5e\n",stepCount,_currTime,_deltaT,maxVel,maxTau);CHKERRQ(ierr);
     //~ ierr = PetscPrintf(PETSC_COMM_WORLD,"%i: t = %.15e s, dt = %.5e, KSP its tot = %i, KSP its step = %i\n",stepCount,_currTime,_deltaT,_material->_myKspCtx._myKspItNumTot,_material->_myKspCtx._myKspItNumStep);CHKERRQ(ierr);
   #endif
   #if VERBOSE > 1
@@ -1201,7 +1212,13 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::solveSS()
     ierr = VecSet(_material->_bcR,0.0); CHKERRQ(ierr);
     ierr = VecSet(_material->_bcT,0.0); CHKERRQ(ierr);
     ierr = VecSet(_material->_bcB,0.0); CHKERRQ(ierr);
-    VecCopy(_fault->_tauP,_material->_bcL);
+    if (_forcingType != "iceStream") {
+      VecCopy(_fault->_tauP,_material->_bcL);
+    }
+    else {
+      ierr = VecSet(_material->_bcL,0.0); CHKERRQ(ierr);
+    }
+
     _material->setRHS();
     _material->computeU();
     _material->computeStresses();

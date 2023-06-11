@@ -195,7 +195,8 @@ PetscErrorCode HeatEquation::loadSettings(const char *file)
     else if (var.compare("TDepths")==0) {
       loadVectorFromInputFile(rhsFull,_TDepths);
       assert(_TDepths.size() >= 2 && _TDepths.size() <= 4);
-      _Lz_lab = _TDepths[1];
+      if (_TDepths.size()>2) { _Lz_lab = _TDepths[1]; }
+      else { _Lz_lab = _TDepths[0]; }
     }
 
     else if (var.compare("initTime")==0) { _initTime = atof( rhs.c_str() ); }
