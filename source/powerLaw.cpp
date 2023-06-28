@@ -2743,7 +2743,12 @@ PetscErrorCode PowerLaw::writeContext(const string outputDir, PetscViewer& viewe
   ierr = PetscViewerHDF5PopGroup(viewer);                               CHKERRQ(ierr);
 
   if (_wPlasticity.compare("yes")==0) {_plastic->writeContext(viewer); }
-  if (_wDissPrecCreep.compare("yes")==0) {_dp->writeContext(viewer); }
+  if (_wDissPrecCreep.compare("yes")==0) {
+    _dp->writeContext(viewer);
+    ierr = PetscViewerHDF5PushGroup(viewer, "/momBal/dissolutionPrecipitationCreep");  CHKERRQ(ierr);
+    ierr = VecView(_grainSize,viewer);                                  CHKERRQ(ierr);
+    ierr = PetscViewerHDF5PopGroup(viewer);                             CHKERRQ(ierr);
+  }
   if (_wDislCreep.compare("yes")==0) {_disl->writeContext(viewer); }
   if (_wDiffCreep.compare("yes")==0) {
     _diff->writeContext(viewer);
