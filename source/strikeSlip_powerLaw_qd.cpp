@@ -1233,6 +1233,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::integrateSS()
   // initial guess for (thermo)mechanical problem
   initiateIntegrandSS();
   if (!_D->_restartFromChkptSS){
+    PetscPrintf(PETSC_COMM_WORLD,"\n about to run solveSS\n");
     solveSS(_SS_index);
     writeSS(_SS_index);
     _SS_index++;
@@ -1241,22 +1242,23 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::integrateSS()
   // iterate to converge to steady-state solution
   while (_SS_index < _maxSSIts_tot) {
     PetscPrintf(PETSC_COMM_WORLD,"Jj = %i\n",_SS_index);
+    PetscPrintf(PETSC_COMM_WORLD,"\n about to run solveSSViscoelasticProblem\n");
 
     // iterate to find effective viscosity etc
     solveSSViscoelasticProblem(_SS_index);
 
-    // find steady-state temperature
-    if (_computeSSTemperature == 1) { solveSSHeatEquation(_SS_index); }
-    if (_thermalCoupling == "coupled") {
-      _material->updateTemperature(_varSS["Temp"]);
-      _fault->updateTemperature(_varSS["Temp"]);
-    }
+    // brute force time integrate for steady-state shear stress the fault
+    //~ solveSStau(_SS_index);
+
+    //~ // find steady-state temperature
+    //~ if (_computeSSTemperature == 1) { solveSSHeatEquation(_SS_index); }
+    //~ if (_thermalCoupling == "coupled") {
+      //~ _material->updateTemperature(_varSS["Temp"]);
+      //~ _fault->updateTemperature(_varSS["Temp"]);
+    //~ }
 
     writeSS(_SS_index);
     _SS_index++;
-
-    // brute force time integrate for steady-state shear stress the fault
-    solveSStau(_SS_index);
   }
 
 
@@ -1532,19 +1534,22 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::solveSSViscoelasticProblem(const PetscInt
   #endif
 
   // set up KSP for steady-state solution
-  _material->changeBCTypes(_mat_bcRType,_mat_bcTType,"Neumann",_mat_bcBType);
-  Mat A;
-  _material->_sbp->getA(A);
-  _material->setupKSP(_material->_ksp,_material->_pc,A,_material->_linSolverSS);
+  //~ _material->changeBCTypes(_mat_bcRType,_mat_bcTType,"Neumann",_mat_bcBType);
+  //~ _material->changeBCTypes("Dirichlet",_mat_bcTType_SS,"Neumann","Neumann");
+  //~ Mat A;
+  //~ _material->_sbp->getA(A);
+  //~ _material->setupKSP(_material->_ksp,_material->_pc,A,_material->_linSolverSS);
 
   // set up rhs vector containing boundary condition data
   VecCopy(_varSS["tau"],_material->_bcL);
   VecSet(_material->_bcR,_vL/2.);
   string  _mat_bcTType_SS = "Neumann";
-  if (_bcTType == "atan_u") {
-    updateBCT_atan_v();
-    _mat_bcTType_SS = "Dirichlet";
-  }
+  VecSet(_material->_bcT,0.);
+  VecSet(_material->_bcB,0.);
+  //~ if (_bcTType == "atan_u") {
+    //~ updateBCT_atan_v();
+    //~ _mat_bcTType_SS = "Dirichlet";
+  //~ }
 
   // loop over effective viscosity
   Vec effVisc_old; VecDuplicate(_varSS["effVisc"],&effVisc_old);

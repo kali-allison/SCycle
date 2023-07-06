@@ -649,6 +649,7 @@ PetscErrorCode Fault::writeCheckpoint(PetscViewer& viewer)
     ierr = VecView(_k, viewer);                                        CHKERRQ(ierr);
     ierr = VecView(_c, viewer);                                        CHKERRQ(ierr);
     ierr = VecView(_Tw, viewer);                                        CHKERRQ(ierr);
+    ierr = VecView(_T, viewer);                                        CHKERRQ(ierr);
     ierr = VecView(_Vw, viewer);                                        CHKERRQ(ierr);
   }
   ierr = VecView(_slip, viewer);                                        CHKERRQ(ierr);
@@ -657,10 +658,6 @@ PetscErrorCode Fault::writeCheckpoint(PetscViewer& viewer)
   ierr = VecView(_tauQSP, viewer);                                      CHKERRQ(ierr);
   ierr = VecView(_strength, viewer);                                    CHKERRQ(ierr);
   ierr = VecView(_psi, viewer);                                         CHKERRQ(ierr);
-  if (_stateLaw.compare("flashHeating") == 0) {
-    ierr = VecView(_T, viewer);                                         CHKERRQ(ierr);
-    ierr = VecView(_Vw, viewer);                                        CHKERRQ(ierr);
-  }
 
   ierr = PetscViewerHDF5PopGroup(viewer);                               CHKERRQ(ierr);
 
