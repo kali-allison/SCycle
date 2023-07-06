@@ -160,6 +160,8 @@ public:
   PetscErrorCode d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx);
   PetscErrorCode getResid(const PetscInt ind,const PetscScalar vel,PetscScalar* out);
   PetscErrorCode computeVel();
+  PetscErrorCode updateStrength();
+  PetscErrorCode updateTauP();
   PetscErrorCode writeContext(const string outputDir, PetscViewer& viewer);
   PetscErrorCode writeCheckpoint(PetscViewer& viewer);
   PetscErrorCode loadCheckpoint();

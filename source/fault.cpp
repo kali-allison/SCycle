@@ -1008,6 +1008,43 @@ PetscErrorCode Fault_qd::d_dt(const PetscScalar time, const map<string,Vec>& var
   return ierr;
 }
 
+// update tauP based on current tauQSP and slipVel
+// set tauP = tauQS - eta_rad *slipVel
+PetscErrorCode Fault_qd::updateTauP()
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    string funcName = "Fault_qd::updateTauP";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+
+  ierr = VecCopy(_slipVel,_tauP);CHKERRQ(ierr); // V -> tau
+  ierr = VecPointwiseMult(_tauP,_eta_rad,_tauP);CHKERRQ(ierr); // tau = V * eta_rad
+  ierr = VecAYPX(_tauP,-1.0,_tauQSP);CHKERRQ(ierr); // tau = tauQS - V*eta_rad
+
+  #if VERBOSE > 1
+     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+  return ierr;
+}
+
+// update strength based on current state (slipVel and psi)
+PetscErrorCode Fault_qd::updateStrength()
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    string funcName = "Fault_qd::updateStrength";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+
+  ierr = strength_psi_Vec(_strength, _psi, _slipVel, _a, _sNEff, _v0);CHKERRQ(ierr);
+
+  #if VERBOSE > 1
+     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+  return ierr;
+}
+
 
 // output vector fields into file, and calls writeContext function in Fault
 PetscErrorCode Fault_qd::writeContext(const string outputDir, PetscViewer& viewer)

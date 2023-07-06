@@ -1591,8 +1591,10 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::solveSSViscoelasticProblem(const PetscInt
   // update shear stress on fault
   ierr = VecScatterBegin(*_body2fault, _material->_sxy, _fault->_tauQSP, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
   ierr = VecScatterEnd(*_body2fault, _material->_sxy, _fault->_tauQSP, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
-  VecCopy(_fault->_tauQSP,_fault->_tauP);
-  VecCopy(_fault->_tauQSP,_fault->_strength);
+  _fault->updateTauP();
+  _fault->updateStrength();
+  //VecCopy(_fault->_tauQSP,_fault->_tauP);
+  //VecCopy(_fault->_tauQSP,_fault->_strength);
 
   #if VERBOSE > 1
      PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
