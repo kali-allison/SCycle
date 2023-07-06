@@ -138,6 +138,7 @@ public:
 
 
   // steady-state iteration methods
+  PetscErrorCode writeViscLoopSS(const int Ii); // for testing fixed point iteration method
   PetscErrorCode writeSS(const int Ii);
   PetscErrorCode guessTauSS(map<string,Vec>& varSS);
   PetscErrorCode solveSSb();

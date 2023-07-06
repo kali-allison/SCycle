@@ -1577,6 +1577,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::solveSSViscoelasticProblem(const PetscInt
     err = computeMaxDiff_scaleVec1(effVisc_old,_varSS["effVisc"]); // total eff visc
 
     PetscPrintf(PETSC_COMM_WORLD,"    effective viscosity loop: %i %e\n",Ii,err);
+    ierr = writeViscLoopSS(Ii); CHKERRQ(ierr);
     Ii++;
   }
   VecDestroy(&effVisc_old);
@@ -1752,6 +1753,93 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::writeSS(const int Ii)
   ierr = _material->writeStep2D(_viewerSS);                             CHKERRQ(ierr);
   if (_he!=NULL) { ierr =  _he->writeStep2D(_viewerSS); CHKERRQ(ierr); }
   if (_computeSSGrainSize == 1) { ierr =  _grainDist->writeStep(_viewerSS); CHKERRQ(ierr); }
+
+  if (needToDestroyJjSSVec == 1) {VecDestroy(&_JjSSVec);}
+
+  #if VERBOSE > 1
+     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+  return ierr;
+}
+
+PetscErrorCode StrikeSlip_PowerLaw_qd::writeViscLoopSS(const int Ii)
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    std::string funcName = "StrikeSlip_PowerLaw_qd::writeViscLoopSS";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+
+  bool needToDestroyJjSSVec = 0;
+  if (_JjSSVec == NULL) {
+    // initiate Vec to hold index Jj
+    VecCreateMPI(PETSC_COMM_WORLD, PETSC_DECIDE, 1, &_JjSSVec);
+    VecSetBlockSize(_JjSSVec, 1);
+    PetscObjectSetName((PetscObject) _JjSSVec, "index");
+    VecSet(_JjSSVec,Ii);
+    needToDestroyJjSSVec = 1;
+  }
+  else {
+    VecSet(_JjSSVec,Ii);
+  }
+
+  ierr = VecSet(_JjSSVec,Ii);                                           CHKERRQ(ierr);
+
+  if (_viewerSS == NULL) {
+    // set up viewer for output of steady-state data
+    string outFileName = _outputDir + "data_viscLoop.h5";
+    ierr = PetscViewerCreate(PETSC_COMM_WORLD, &_viewerSS);             CHKERRQ(ierr);
+    ierr = PetscViewerSetType(_viewerSS, PETSCVIEWERBINARY);            CHKERRQ(ierr);
+    ierr = PetscViewerHDF5Open(PETSC_COMM_WORLD, outFileName.c_str(), FILE_MODE_APPEND, &_viewerSS);CHKERRQ(ierr);
+
+    ierr = PetscViewerHDF5PushGroup(_viewerSS, "/steadyState");         CHKERRQ(ierr);
+    ierr = PetscViewerHDF5PushTimestepping(_viewerSS);                  CHKERRQ(ierr);
+    ierr = PetscViewerHDF5SetTimestep(_viewerSS, _SS_index);            CHKERRQ(ierr);
+  }
+  else {
+    ierr = PetscViewerHDF5PushGroup(_viewerSS, "/steadyState");         CHKERRQ(ierr);
+    ierr = PetscViewerHDF5PushTimestepping(_viewerSS);                  CHKERRQ(ierr);
+    ierr = PetscViewerHDF5IncrementTimestep(_viewerSS);                 CHKERRQ(ierr);
+  }
+
+  ierr = VecView(_JjSSVec, _viewerSS);                                  CHKERRQ(ierr);
+  ierr = PetscViewerHDF5WriteAttribute(_viewerSS, "SS_index", "SS_index", PETSC_INT, &_SS_index); CHKERRQ(ierr);
+
+  ierr = PetscViewerHDF5PushGroup(_viewerSS, "/momBal");                   CHKERRQ(ierr);
+  ierr = VecView(_material->_surfDisp,_viewerSS);                                     CHKERRQ(ierr);
+  ierr = VecView(_material->_bcL,_viewerSS);                                          CHKERRQ(ierr);
+  ierr = VecView(_material->_bcR,_viewerSS);                                          CHKERRQ(ierr);
+  ierr = VecView(_material->_bcB,_viewerSS);                                          CHKERRQ(ierr);
+  ierr = VecView(_material->_bcT,_viewerSS);                                          CHKERRQ(ierr);
+  ierr = VecView(_material->_bcRShift, _viewerSS);                                    CHKERRQ(ierr);
+  ierr = VecView(_material->_u,_viewerSS);                                            CHKERRQ(ierr);
+  ierr = VecView(_material->_sxy,_viewerSS);                                          CHKERRQ(ierr);
+  ierr = VecView(_material->_sxz,_viewerSS);                                          CHKERRQ(ierr);
+  ierr = VecView(_material->_sdev,_viewerSS);                                         CHKERRQ(ierr);
+  ierr = VecView(_material->_gTxy,_viewerSS);                                         CHKERRQ(ierr);
+  ierr = VecView(_material->_gTxz,_viewerSS);                                         CHKERRQ(ierr);
+  ierr = VecView(_material->_gVxy,_viewerSS);                                         CHKERRQ(ierr);
+  ierr = VecView(_material->_gVxz,_viewerSS);                                         CHKERRQ(ierr);
+  ierr = VecView(_material->_dgVxy,_viewerSS);                                        CHKERRQ(ierr);
+  ierr = VecView(_material->_dgVxz,_viewerSS);                                        CHKERRQ(ierr);
+  ierr = VecView(_material->_effVisc,_viewerSS);                                      CHKERRQ(ierr);
+  ierr = PetscViewerHDF5PopGroup(_viewerSS);                             CHKERRQ(ierr);
+
+  ierr = PetscViewerHDF5PushGroup(_viewerSS, "/momBal/dislocationCreep");CHKERRQ(ierr);
+  ierr = VecView(_material->_dgVdev_disl,_viewerSS);                                CHKERRQ(ierr);
+  ierr = VecView(_material->_disl->_invEffVisc,_viewerSS);                          CHKERRQ(ierr);
+  ierr = PetscViewerHDF5PopGroup(_viewerSS);                             CHKERRQ(ierr);
+
+  ierr = PetscViewerHDF5PushGroup(_viewerSS, "/fault");                  CHKERRQ(ierr);
+  ierr = VecView(_fault->_slip, _viewerSS);                                      CHKERRQ(ierr);
+  ierr = VecView(_fault->_slipVel, _viewerSS);                                   CHKERRQ(ierr);
+  ierr = VecView(_fault->_tauP, _viewerSS);                                      CHKERRQ(ierr);
+  ierr = VecView(_fault->_tauQSP, _viewerSS);                                    CHKERRQ(ierr);
+  ierr = VecView(_fault->_strength, _viewerSS);                                  CHKERRQ(ierr);
+  ierr = VecView(_fault->_psi, _viewerSS);                                       CHKERRQ(ierr);
+  ierr = VecView(_fault->_sNEff, _viewerSS);                                     CHKERRQ(ierr);
+  ierr = VecView(_fault->_sN, _viewerSS);                                        CHKERRQ(ierr);
+  ierr = PetscViewerHDF5PopGroup(_viewerSS);                             CHKERRQ(ierr);
 
   if (needToDestroyJjSSVec == 1) {VecDestroy(&_JjSSVec);}
 
