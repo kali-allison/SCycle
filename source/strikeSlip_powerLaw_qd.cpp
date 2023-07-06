@@ -1240,7 +1240,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::integrateSS()
   }
 
   // iterate to converge to steady-state solution
-  while (_SS_index < _maxSSIts_tot) {
+  //~ while (_SS_index < _maxSSIts_tot) {
     PetscPrintf(PETSC_COMM_WORLD,"Jj = %i\n",_SS_index);
     PetscPrintf(PETSC_COMM_WORLD,"\n about to run solveSSViscoelasticProblem\n");
 
@@ -1259,7 +1259,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::integrateSS()
 
     writeSS(_SS_index);
     _SS_index++;
-  }
+  //~ }
 
 
 
