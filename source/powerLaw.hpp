@@ -12,107 +12,12 @@
 #include "sbpOps.hpp"
 #include "sbpOps_m_constGrid.hpp"
 #include "sbpOps_m_varGrid.hpp"
+#include "dislocationCreep.hpp"
+#include "diffusionCreep.hpp"
+#include "dissolutionPrecipitationCreep.hpp"
+#include "pseudoplasticity.hpp"
 
 using namespace std;
-
-
-// computes effective viscosity for dissolution-precipitation creep
-// 1 / (effVisc) = B * fh2o^r * Vs * exp(3*Vs*sdev /(R*T)) d^-m / sdev
-class DissolutionPrecipitationCreep
-{
-private:
-  // disable default copy constructor and assignment operator
-  DissolutionPrecipitationCreep(const DissolutionPrecipitationCreep &that);
-  DissolutionPrecipitationCreep& operator=(const DissolutionPrecipitationCreep &rhs);
-
-  // load settings and set material parameters
-  vector<double>  _BVals,_BDepths,_DVals,_DDepths,_cVals,_cDepths,_VsVals,_VsDepths,_mVals,_mDepths;
-  PetscErrorCode loadSettings(); // load settings from input file
-  PetscErrorCode loadFieldsFromFiles();
-  PetscErrorCode checkInput(); // check input from file
-  PetscErrorCode setMaterialParameters();
-
-public:
-  const char     *_file;
-  string          _delim;
-  string          _inputDir;
-  const Vec      *_y,*_z;
-  const float     _R; // (kJ/K/mol) gas constant
-  Vec             _B,_D,_c,_Vs; // diffusion/shape, molar volume
-  Vec             _m; // grain size exponent
-  Vec             _invEffVisc; // 1 / (effective viscosity)
-
-  DissolutionPrecipitationCreep(Domain& D, const Vec& y, const Vec& z, const char *file, const string delim);
-  ~DissolutionPrecipitationCreep();
-  PetscErrorCode guessInvEffVisc(const Vec& Temp, const double dg,const Vec& grainSize, const Vec& WetDistribution);
-  PetscErrorCode computeInvEffVisc(const Vec& Temp, const Vec& sdev,const Vec& grainSize, const Vec& WetDistribution);
-  PetscErrorCode writeContext(PetscViewer &viewer);
-  PetscErrorCode loadCheckpoint(PetscViewer& viewer);
-};
-
-// computes effective viscosity for dislocation creep
-// 1 / (effVisc) = A * exp(-QR/T) * fh2o^r * sdev^(n-1)
-class DislocationCreep
-{
-private:
-  // disable default copy constructor and assignment operator
-  DislocationCreep(const DislocationCreep &that);
-  DislocationCreep& operator=(const DislocationCreep &rhs);
-
-  // load settings and set material parameters
-  vector<double>  _AVals,_ADepths,_nVals,_nDepths,_QRVals,_QRDepths;
-  PetscErrorCode loadSettings(); // load settings from input file
-  PetscErrorCode loadFieldsFromFiles();
-  PetscErrorCode checkInput(); // check input from file
-  PetscErrorCode setMaterialParameters();
-
-public:
-  const char     *_file;
-  string          _delim;
-  string          _inputDir;
-  const Vec      *_y,*_z;
-  Vec             _A,_n,_QR;// prefactor, stress exponent,activation energy Q divided by gas constant
-  Vec             _invEffVisc; // 1 / (effective viscosity)
-
-  DislocationCreep(Domain& D, const Vec& y, const Vec& z, const char *file, const string delim);
-  ~DislocationCreep();
-  PetscErrorCode guessInvEffVisc(const Vec& Temp, const double dg);
-  PetscErrorCode computeInvEffVisc(const Vec& Temp, const Vec& sdev);
-  PetscErrorCode writeContext(PetscViewer &viewer);
-  PetscErrorCode loadCheckpoint(PetscViewer& viewer);
-};
-
-// computes effective viscosity for diffusion creep
-// 1 / (effVisc) = A exp(-B/T) * fh2o^r sdev^n d^-m
-class DiffusionCreep
-{
-private:
-  // disable default copy constructor and assignment operator
-  DiffusionCreep(const DiffusionCreep &that);
-  DiffusionCreep& operator=(const DiffusionCreep &rhs);
-
-  // load settings and set material parameters
-  vector<double>  _AVals,_ADepths,_QRVals,_QRDepths,_nVals,_nDepths,_mVals,_mDepths;
-  PetscErrorCode loadSettings(); // load settings from input file
-  PetscErrorCode loadFieldsFromFiles();
-  PetscErrorCode checkInput(); // check input from file
-  PetscErrorCode setMaterialParameters();
-
-public:
-  const char     *_file;
-  string          _delim;
-  string          _inputDir;
-  const Vec      *_y,*_z;
-  Vec             _A,_n,_QR,_m;// prefactor, stress exponent, fluid fugacity exponent, activation energy /R, grain size exponent
-  Vec             _invEffVisc; // 1 / (effective viscosity)
-
-  DiffusionCreep(Domain& D,const Vec& y, const Vec& z, const char *file, const string delim);
-  ~DiffusionCreep();
-  PetscErrorCode guessInvEffVisc(const Vec& Temp, const double dg,const Vec& grainSize);
-  PetscErrorCode computeInvEffVisc(const Vec& Temp, const Vec& sdev,const Vec& grainSize);
-  PetscErrorCode writeContext(PetscViewer &viewer);
-  PetscErrorCode loadCheckpoint(PetscViewer& viewer);
-};
 
 
 class PowerLaw
@@ -161,8 +66,7 @@ class PowerLaw
     // linear system data
     std::string           _linSolverSS,_linSolverTrans;
     std::string           _bcRType,_bcTType,_bcLType,_bcBType; // BC options: Neumann, Dirichlet
-    Vec                   _rhs,_bcT,_bcR,_bcB,_bcRShift,_bcTShift;
-    Vec                   _bcL_SS,_bcL_trans; // transient vs steady-state
+    Vec                   _rhs,_bcR,_bcT,_bcL,_bcB,_bcRShift,_bcTShift;
     KSP                   _ksp;
     PC                    _pc;
     PetscScalar           _kspTol;
