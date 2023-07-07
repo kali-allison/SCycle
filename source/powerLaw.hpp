@@ -15,38 +15,6 @@
 
 using namespace std;
 
-// computes effective viscosity for pseudoplasticity
-// 1 / (effVisc) = (yield stress) / (inelastic strain rate)
-class Pseudoplasticity
-{
-private:
-  // disable default copy constructor and assignment operator
-  Pseudoplasticity(const Pseudoplasticity &that);
-  Pseudoplasticity& operator=(const Pseudoplasticity &rhs);
-
-  // load settings and set material parameters
-  vector<double>  _yieldStressVals,_yieldStressDepths; // define yield stress
-  PetscErrorCode loadSettings(); // load settings from input file
-  PetscErrorCode loadFieldsFromFiles();
-  PetscErrorCode checkInput(); // check input from file
-  PetscErrorCode setMaterialParameters();
-
-public:
-  const char     *_file;
-  const string    _delim;
-  string          _inputDir;
-  const Vec      *_y,*_z;
-  Vec             _yieldStress; // (MPa)
-  Vec             _invEffVisc; // (GPa) eff. viscosity from plasticity
-
-  Pseudoplasticity(Domain& D,const Vec& y, const Vec& z, const char *file, const string delim);
-  ~Pseudoplasticity();
-  PetscErrorCode guessInvEffVisc(const double dg);
-  PetscErrorCode computeInvEffVisc(const Vec& dgdev);
-  PetscErrorCode writeContext(PetscViewer &viewer);
-  PetscErrorCode loadCheckpoint(PetscViewer& viewer);
-};
-
 
 // computes effective viscosity for dissolution-precipitation creep
 // 1 / (effVisc) = B * fh2o^r * Vs * exp(3*Vs*sdev /(R*T)) d^-m / sdev
@@ -193,7 +161,8 @@ class PowerLaw
     // linear system data
     std::string           _linSolverSS,_linSolverTrans;
     std::string           _bcRType,_bcTType,_bcLType,_bcBType; // BC options: Neumann, Dirichlet
-    Vec                   _rhs,_bcT,_bcR,_bcB,_bcL,_bcRShift,_bcTShift;
+    Vec                   _rhs,_bcT,_bcR,_bcB,_bcRShift,_bcTShift;
+    Vec                   _bcL_SS,_bcL_trans; // transient vs steady-state
     KSP                   _ksp;
     PC                    _pc;
     PetscScalar           _kspTol;

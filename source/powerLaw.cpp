@@ -1185,7 +1185,7 @@ PowerLaw::PowerLaw(Domain& D,std::string bcRType,std::string bcTType,std::string
   _u(NULL),_surfDisp(NULL),_sxy(NULL),_sxz(NULL),_sdev(NULL),
   _gTxy(NULL),_gVxy(NULL),_dgVxy(NULL),_gTxz(NULL),_gVxz(NULL),_dgVxz(NULL),_dgVdev(NULL),_dgVdev_disl(NULL),
   _linSolverSS("MUMPSCHOLESKY"),_linSolverTrans("MUMPSCHOLESKY"),_bcRType(bcRType),_bcTType(bcTType),_bcLType(bcLType),_bcBType(bcBType),
-  _rhs(NULL),_bcT(NULL),_bcR(NULL),_bcB(NULL),_bcL(NULL),_bcRShift(NULL),_bcTShift(NULL),
+  _rhs(NULL),_bcT(NULL),_bcR(NULL),_bcB(NULL),_bcRShift(NULL),_bcTShift(NULL),_bcL_SS(NULL),_bcL_trans(NULL),
   _ksp(NULL),_pc(NULL),_kspTol(1e-10),_sbp(NULL),_B(NULL),_C(NULL),
   _sbp_eta(NULL),_ksp_eta(NULL),_pc_eta(NULL),
   _integrateTime(0),_writeTime(0),_linSolveTime(0),_factorTime(0),_startTime(MPI_Wtime()),_miscTime(0),_linSolveCount(0)
@@ -1245,7 +1245,8 @@ PowerLaw::~PowerLaw()
 
   // boundary conditions
   VecDestroy(&_rhs);
-  VecDestroy(&_bcL);
+  VecDestroy(&_bcL_SS);
+  VecDestroy(&_bcL_trans);
   VecDestroy(&_bcR);
   VecDestroy(&_bcT);
   VecDestroy(&_bcB);
@@ -1406,9 +1407,10 @@ PetscErrorCode PowerLaw::allocateFields()
   #endif
 
   // boundary conditions
-  VecDuplicate(_D->_y0,&_bcL);   VecSet(_bcL,0.0);      PetscObjectSetName((PetscObject) _bcL, "bcL");
-  VecDuplicate(_bcL,&_bcRShift); VecSet(_bcRShift,0.0); PetscObjectSetName((PetscObject) _bcRShift, "bcRShift");
-  VecDuplicate(_bcL,&_bcR);      VecSet(_bcR,0.);       PetscObjectSetName((PetscObject) _bcR, "bcR");
+  VecDuplicate(_D->_y0,&_bcR);   VecSet(_bcR,0.0);      PetscObjectSetName((PetscObject) _bcR, "bcR");
+  VecDuplicate(_bcR,&_bcRShift); VecSet(_bcRShift,0.0); PetscObjectSetName((PetscObject) _bcRShift, "bcRShift");
+  VecDuplicate(_bcR,&_bcL_SS);   VecSet(_bcL_SS,0.);    PetscObjectSetName((PetscObject) _bcL_SS, "bcL_SS");
+  VecDuplicate(_bcR,&_bcL_trans);VecSet(_bcL_trans,0.); PetscObjectSetName((PetscObject) _bcL_trans, "bcL_trans");
   VecDuplicate(_D->_z0,&_bcT);   VecSet(_bcT,0.0);      PetscObjectSetName((PetscObject) _bcT, "bcT");
   VecDuplicate(_bcT,&_bcB);      VecSet(_bcB,0.0);      PetscObjectSetName((PetscObject) _bcB, "bcB");
   VecDuplicate(_bcT,&_bcTShift); VecSet(_bcTShift,0.0); PetscObjectSetName((PetscObject) _bcTShift, "bcTShift");
@@ -1509,7 +1511,8 @@ PetscErrorCode PowerLaw::loadFieldsFromFiles()
   #endif
 
   // load bcL and bcR
-  ierr = loadVecFromInputFile(_bcL,_inputDir,"momBal_bcL"); CHKERRQ(ierr);
+  ierr = loadVecFromInputFile(_bcL_trans,_inputDir,"momBal_bcL"); CHKERRQ(ierr);
+  ierr = loadVecFromInputFile(_bcL_SS,_inputDir,"momBal_bcL_SS"); CHKERRQ(ierr);
   ierr = loadVecFromInputFile(_bcRShift,_inputDir,"momBal_bcR"); CHKERRQ(ierr);
   VecSet(_bcR,0.0);
 
@@ -2045,7 +2048,7 @@ PetscErrorCode PowerLaw::setRHS()
   #endif
 
   VecSet(_rhs,0.);
-  ierr = _sbp->setRhs(_rhs,_bcL,_bcR,_bcT,_bcB);CHKERRQ(ierr);
+  ierr = _sbp->setRhs(_rhs,_bcL_trans,_bcR,_bcT,_bcB);CHKERRQ(ierr);
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
