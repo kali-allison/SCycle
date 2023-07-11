@@ -8,8 +8,8 @@ using namespace std;
 //======================================================================
 // dislocation creep class
 
-DislocationCreep::DislocationCreep(Domain& D, const Vec& y, const Vec& z, const char *file, const string delim)
-  : _file(file),_delim(delim),_inputDir("unspecified"),_y(&y),_z(&z),
+DislocationCreep::DislocationCreep(Domain& D, const Vec& y, const Vec& z, const char *file, const string delim,const string prefix)
+  : _file(file),_delim(delim),_inputDir("unspecified"),_prefix(prefix),_y(&y),_z(&z),
   _A(NULL),_n(NULL),_QR(NULL),_invEffVisc(NULL)
 {
   #if VERBOSE > 1
@@ -21,7 +21,7 @@ DislocationCreep::DislocationCreep(Domain& D, const Vec& y, const Vec& z, const 
   checkInput();
   setMaterialParameters();
   if (!D._restartFromChkpt && !D._restartFromChkptSS) {
-    loadFieldsFromFiles();
+    loadFieldsFromFiles(_prefix);
   }
 
   #if VERBOSE > 1
@@ -79,12 +79,12 @@ PetscErrorCode DislocationCreep::loadSettings()
     rhs = rhs.substr(0,pos);
 
     if (var.compare("inputDir") == 0) { _inputDir = rhs; }
-    else if (var.compare("disl_AVals")==0) { loadVectorFromInputFile(rhsFull,_AVals); }
-    else if (var.compare("disl_ADepths")==0) { loadVectorFromInputFile(rhsFull,_ADepths); }
-    else if (var.compare("disl_QRVals")==0) { loadVectorFromInputFile(rhsFull,_QRVals); }
-    else if (var.compare("disl_QRDepths")==0) { loadVectorFromInputFile(rhsFull,_QRDepths); }
-    else if (var.compare("disl_nVals")==0) { loadVectorFromInputFile(rhsFull,_nVals); }
-    else if (var.compare("disl_nDepths")==0) { loadVectorFromInputFile(rhsFull,_nDepths); }
+    else if (var.compare("disl" + _prefix + "_AVals")==0) { loadVectorFromInputFile(rhsFull,_AVals); }
+    else if (var.compare("disl" + _prefix + "_ADepths")==0) { loadVectorFromInputFile(rhsFull,_ADepths); }
+    else if (var.compare("disl" + _prefix + "_QRVals")==0) { loadVectorFromInputFile(rhsFull,_QRVals); }
+    else if (var.compare("disl" + _prefix + "_QRDepths")==0) { loadVectorFromInputFile(rhsFull,_QRDepths); }
+    else if (var.compare("disl" + _prefix + "_nVals")==0) { loadVectorFromInputFile(rhsFull,_nVals); }
+    else if (var.compare("disl" + _prefix + "_nDepths")==0) { loadVectorFromInputFile(rhsFull,_nDepths); }
   }
 
   #if VERBOSE > 1
@@ -161,6 +161,31 @@ PetscErrorCode DislocationCreep::loadFieldsFromFiles()
   return ierr;
 }
 
+// load input binary files that follow form:
+// fileName = _inputDir + "disl" + prefix + "_" + <name of field>
+PetscErrorCode DislocationCreep::loadFieldsFromFiles(const string prefix)
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    string funcName = "DislocationCreep::loadFieldsFromFiles(string prefix)";
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+    CHKERRQ(ierr);
+  #endif
+
+  string fullPrefix = _inputDir + "disl" + prefix + "_";
+
+  ierr = loadVecFromInputFile(_A,fullPrefix,"A"); CHKERRQ(ierr);
+  ierr = loadVecFromInputFile(_QR,fullPrefix,"QR"); CHKERRQ(ierr);
+  ierr = loadVecFromInputFile(_n,fullPrefix,"n"); CHKERRQ(ierr);
+  ierr = loadVecFromInputFile(_invEffVisc,fullPrefix,"invEffVisc"); CHKERRQ(ierr);
+
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+    CHKERRQ(ierr);
+  #endif
+  return ierr;
+}
+
 
 PetscErrorCode DislocationCreep::writeContext(PetscViewer &viewer)
 {
@@ -171,8 +196,10 @@ PetscErrorCode DislocationCreep::writeContext(PetscViewer &viewer)
     CHKERRQ(ierr);
   #endif
 
+  string groupName = "/momBal/dislocationCreep" + _prefix;
+
   // write context variables
-  ierr = PetscViewerHDF5PushGroup(viewer, "/momBal/dislocationCreep");  CHKERRQ(ierr);
+  ierr = PetscViewerHDF5PushGroup(viewer, groupName.c_str());           CHKERRQ(ierr);
   ierr = VecView(_A, viewer);                                           CHKERRQ(ierr);
   ierr = VecView(_QR, viewer);                                          CHKERRQ(ierr);
   ierr = VecView(_n, viewer);                                           CHKERRQ(ierr);
@@ -194,8 +221,10 @@ PetscErrorCode DislocationCreep::loadCheckpoint(PetscViewer &viewer)
     CHKERRQ(ierr);
   #endif
 
+  string groupName = "/momBal/dislocationCreep" + _prefix;
+
   // write context variables
-  ierr = PetscViewerHDF5PushGroup(viewer, "/momBal/dislocationCreep");  CHKERRQ(ierr);
+  ierr = PetscViewerHDF5PushGroup(viewer, groupName.c_str());           CHKERRQ(ierr);
   ierr = VecLoad(_A, viewer);                                           CHKERRQ(ierr);
   ierr = VecLoad(_QR, viewer);                                          CHKERRQ(ierr);
   ierr = VecLoad(_n, viewer);                                           CHKERRQ(ierr);

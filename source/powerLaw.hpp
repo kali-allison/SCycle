@@ -40,12 +40,14 @@ class PowerLaw
     Vec                 *_y,*_z; // to handle variable grid spacing
     const bool           _isMMS; // true if running mms test
     std::string          _wPlasticity,_wDissPrecCreep,_wDislCreep,_wDiffCreep,_wLinearMaxwell;
+    std::string          _wDislCreep2; // if supporting wet and dry dislocation creep
 
 
     // deformation mechanisms
     Pseudoplasticity                  *_plastic;
     DissolutionPrecipitationCreep     *_dp;
     DislocationCreep                  *_disl;
+    DislocationCreep                  *_disl2; // if supporting wet and dry dislocation creep
     DiffusionCreep                    *_diff;
 
     // material properties

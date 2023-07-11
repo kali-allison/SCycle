@@ -730,7 +730,6 @@ PetscErrorCode Fault::guessSS(const PetscScalar vL)
   // set state variable
   if (_stateVals.size() == 0) {
     computePsiSS(vL);
-    PetscPrintf(PETSC_COMM_WORLD,"computing psi based on vL!\n");
   }
 
   // shear stress

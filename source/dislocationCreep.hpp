@@ -28,6 +28,7 @@ private:
   vector<double>  _AVals,_ADepths,_nVals,_nDepths,_QRVals,_QRDepths;
   PetscErrorCode loadSettings(); // load settings from input file
   PetscErrorCode loadFieldsFromFiles();
+  PetscErrorCode loadFieldsFromFiles(const string prefix);
   PetscErrorCode checkInput(); // check input from file
   PetscErrorCode setMaterialParameters();
 
@@ -35,11 +36,12 @@ public:
   const char     *_file;
   string          _delim;
   string          _inputDir;
+  string          _prefix; // appended to names of input and output files if multiple disl creep mechanisms desired
   const Vec      *_y,*_z;
   Vec             _A,_n,_QR;// prefactor, stress exponent,activation energy Q divided by gas constant
   Vec             _invEffVisc; // 1 / (effective viscosity)
 
-  DislocationCreep(Domain& D, const Vec& y, const Vec& z, const char *file, const string delim);
+  DislocationCreep(Domain& D, const Vec& y, const Vec& z, const char *file, const string delim, const string prefix);
   ~DislocationCreep();
   PetscErrorCode guessInvEffVisc(const Vec& Temp, const double dg);
   PetscErrorCode computeInvEffVisc(const Vec& Temp, const Vec& sdev);
