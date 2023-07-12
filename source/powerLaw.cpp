@@ -1682,7 +1682,7 @@ double startTime = MPI_Wtime();
     ierr = VecView(_disl->_invEffVisc,viewer);                          CHKERRQ(ierr);
     ierr = PetscViewerHDF5PopGroup(viewer);                             CHKERRQ(ierr);
   }
-  if (_wDislCreep.compare("yes")==0) {
+  if (_wDislCreep2.compare("yes")==0) {
     ierr = PetscViewerHDF5PushGroup(viewer, "/momBal/dislocationCreep2");CHKERRQ(ierr);
     ierr = VecView(_disl2->_invEffVisc,viewer);                          CHKERRQ(ierr);
     ierr = PetscViewerHDF5PopGroup(viewer);                             CHKERRQ(ierr);
