@@ -1744,7 +1744,7 @@ double startTime = MPI_Wtime();
 
   if (_wPlasticity.compare("yes")==0) {_plastic->writeContext(viewer); }
   if (_wDissPrecCreep.compare("yes")==0) {
-    _disl->writeContext(viewer);
+    _dp->writeContext(viewer);
     ierr = PetscViewerHDF5PushGroup(viewer, "/momBal/dissolutionPrecipitationCreep");CHKERRQ(ierr);
     ierr = VecView(_dp->_invEffVisc,viewer);                          CHKERRQ(ierr);
     ierr = PetscViewerHDF5PopGroup(viewer);                             CHKERRQ(ierr);
