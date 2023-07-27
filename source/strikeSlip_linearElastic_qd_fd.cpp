@@ -2164,6 +2164,9 @@ PetscErrorCode StrikeSlip_LinearElastic_qd_fd::d_dt(const PetscScalar time, cons
   VecPointwiseMult(_fault_fd->_tauP,_fault_qd->_eta_rad,_fault_fd->_slipVel);
   VecAYPX(_fault_fd->_tauP,-1.0,_fault_fd->_tauQSP); // tauP = -tauP + tauQSP = eta_rad*slipVel + tauQSP
 
+  // update surface displacement
+  ierr = _material->setSurfDisp(); CHKERRQ(ierr);
+
 
   // update boundary conditions so they are consistent during output
   if (_qd_bcLType.compare("symmFault")==0 || _qd_bcLType.compare("rigidFault")==0) {
@@ -2247,6 +2250,9 @@ PetscErrorCode StrikeSlip_LinearElastic_qd_fd::d_dt(const PetscScalar time, cons
   VecAXPY(_fault_fd->_tauQSP, 1.0, _fault_fd->_prestress);
   VecPointwiseMult(_fault_fd->_tauP,_fault_qd->_eta_rad,_fault_fd->_slipVel);
   VecAYPX(_fault_fd->_tauP,-1.0,_fault_fd->_tauQSP); // tauP = -tauP + tauQSP = eta_rad*slipVel + tauQSP
+
+  // update surface displacement
+  ierr = _material->setSurfDisp(); CHKERRQ(ierr);
 
   // update boundary conditions so they are consistent during output
   if (_qd_bcLType.compare("symmFault")==0 || _qd_bcLType.compare("rigidFault")==0) {
