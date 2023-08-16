@@ -787,6 +787,14 @@ double startTime = MPI_Wtime();
   PetscScalar maxTimeStep_tot, maxDeltaT_momBal = 0.0;
   ierr = _material->computeMaxTimeStep(maxDeltaT_momBal);CHKERRQ(ierr);
   maxTimeStep_tot = min(_maxDeltaT,0.9*maxDeltaT_momBal);
+
+  if (_evolveGrainSize == 1 && _grainDist->_grainSizeEvType == "transient") {
+    PetscScalar maxDeltaT_grainSizeEv = 0;
+    ierr =  _grainDist->computeMaxTimeStep(maxDeltaT_grainSizeEv,_material->_sdev,_material->_dgVdev_disl,_material->_T); CHKERRQ(ierr);
+    maxTimeStep_tot = min(_maxDeltaT,0.9*maxDeltaT_grainSizeEv);
+  }
+
+
   if (_quadImex_qd!=NULL) {
     _quadImex_qd->setTimeStepBounds(_minDeltaT,maxTimeStep_tot);CHKERRQ(ierr);
   }
