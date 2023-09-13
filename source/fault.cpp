@@ -2001,7 +2001,7 @@ PetscErrorCode Fault_fd::writeCheckpoint(PetscViewer& viewer)
   ierr = VecView(_u, viewer);                                           CHKERRQ(ierr);
   ierr = VecView(_uPrev, viewer);                                       CHKERRQ(ierr);
   ierr = VecView(_d2u, viewer);                                         CHKERRQ(ierr);
-  ierr = VecView(_alphay, viewer);                                     CHKERRQ(ierr);
+  ierr = VecView(_alphay, viewer);                                      CHKERRQ(ierr);
 
   ierr = PetscViewerHDF5PopGroup(viewer);                               CHKERRQ(ierr);
 

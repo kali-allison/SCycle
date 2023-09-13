@@ -1418,9 +1418,13 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::prepare_fd2qd()
   ierr = VecCopy(_fault_fd->_psi,       _fault_qd->_psi); CHKERRQ(ierr);
   ierr = VecCopy(_fault_fd->_slipVel,   _fault_qd->_slipVel); CHKERRQ(ierr);
   ierr = VecCopy(_fault_fd->_slip,      _fault_qd->_slip); CHKERRQ(ierr);
+  ierr = VecCopy(_fault_fd->_slip0,     _fault_qd->_slip0); CHKERRQ(ierr);
   ierr = VecCopy(_fault_fd->_strength,  _fault_qd->_strength); CHKERRQ(ierr);
   ierr = VecCopy(_fault_fd->_tauP,      _fault_qd->_tauP); CHKERRQ(ierr);
   ierr = VecCopy(_fault_fd->_tauQSP,    _fault_qd->_tauQSP); CHKERRQ(ierr);
+  ierr = VecCopy(_fault_fd->_prestress, _fault_qd->_prestress); CHKERRQ(ierr);
+  ierr = VecCopy(_fault_fd->_sN,        _fault_qd->_sN); CHKERRQ(ierr);
+  ierr = VecCopy(_fault_fd->_sNEff,     _fault_qd->_sNEff); CHKERRQ(ierr);
   if (_fault_qd->_stateLaw.compare("flashHeating") == 0) {
     ierr = VecCopy(_fault_fd->_T,       _fault_qd->_T); CHKERRQ(ierr);
     ierr = VecCopy(_fault_fd->_Tw,      _fault_qd->_Tw); CHKERRQ(ierr);
