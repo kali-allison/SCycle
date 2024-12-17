@@ -111,7 +111,7 @@ double changeAnyIsnan(Vec& vec, string str, float newVal)
   for (PetscInt Ii=Istart;Ii<Iend;Ii++) {
     if (PetscIsNanReal(val[Jj]) || PetscIsInfReal(val[Jj])) {
       if (hasBeenPrinted == 0) {
-        PetscPrintf(PETSC_COMM_WORLD,str.c_str());
+        PetscPrintf(PETSC_COMM_WORLD,"%s",str.c_str());
         hasBeenPrinted = 1;
       }
       val[Jj] = newVal;
