@@ -288,8 +288,8 @@ PetscErrorCode DiffusionCreep::computeInvEffVisc(const Vec& Temp,const Vec& sdev
   VecGetArray(_invEffVisc,&invEffVisc);
   PetscInt Jj = 0;
   for (Ii=Istart;Ii<Iend;Ii++) {
-    assert(!std::isnan(d[Jj]));
-    assert(!std::isnan(s[Jj]));
+    assert(!PetscIsNanReal(d[Jj]));
+    assert(!PetscIsNanReal(s[Jj]));
     invEffVisc[Jj] = 1e3 * A[Jj] * pow(s[Jj],n[Jj]-1.0) * exp(-QR[Jj]/T[Jj]) * pow(d[Jj],-m[Jj]);
     Jj++;
   }

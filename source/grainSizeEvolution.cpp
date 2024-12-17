@@ -427,18 +427,18 @@ PetscErrorCode GrainSizeEvolution::d_dt(Vec& grainSizeEv_t,const Vec& grainSize,
     PetscScalar w = s[Jj]*0.5*dgdev[Jj]; // work, 0.5 to convert dgdev from engineering to geophysics convention
     PetscScalar red = - cc * d[Jj]*d[Jj] * w;
     d_t[Jj] = growth + red;
-    if (std::isinf(red)) {
+    if (PetscIsInfReal(red)) {
       PetscPrintf(PETSC_COMM_WORLD,"%i: cc = %.15e, d = %.15e, s = %.15e, dgdev = %.15e\n",Jj,cc,d[Jj],s[Jj],dgdev[Jj]);
     }
 
-    assert(!std::isnan(dgdev[Jj]));
-    assert(!std::isinf(dgdev[Jj]));
-    assert(!std::isnan(growth));
-    assert(!std::isinf(growth));
-    assert(!std::isnan(red));
-    assert(!std::isinf(red));
-    assert(!std::isnan(d_t[Jj]));
-    assert(!std::isinf(d_t[Jj]));
+    assert(!PetscIsNanReal(dgdev[Jj]));
+    assert(!PetscIsInfReal(dgdev[Jj]));
+    assert(!PetscIsNanReal(growth));
+    assert(!PetscIsInfReal(growth));
+    assert(!PetscIsNanReal(red));
+    assert(!PetscIsInfReal(red));
+    assert(!PetscIsNanReal(d_t[Jj]));
+    assert(!PetscIsInfReal(d_t[Jj]));
 
     Jj++;
   }
@@ -492,8 +492,8 @@ PetscErrorCode GrainSizeEvolution::computeGrainSizeFromPiez(const Vec& sdev, con
     d[Jj] = max(d[Jj],1e-8);
     d[Jj] = min(d[Jj],10.0);
 
-    assert(!std::isnan(d[Jj]));
-    assert(!std::isinf(d[Jj]));
+    assert(!PetscIsNanReal(d[Jj]));
+    assert(!PetscIsInfReal(d[Jj]));
 
     Jj++;
   }
@@ -555,17 +555,17 @@ PetscErrorCode GrainSizeEvolution::computeSteadyStateGrainSize(const Vec& sdev, 
     PetscScalar b = 1.0;
     PetscScalar c = 2.0;
 
-    if ( std::isinf( pow(BB/AA,1.0/(a-c)) ) ) {
+    if ( PetscIsInfReal( pow(BB/AA,1.0/(a-c)) ) ) {
       d[Jj] = 1e-8;
     }
-    else if (std::isnan(BB)) {
+    else if (PetscIsNanReal(BB)) {
       d[Jj] = 1e-8;
     }
     else {
       d[Jj] = pow(BB/AA,1.0/(a-c)) * pow(s[Jj],b/(a-c));
     }
 
-    if ( std::isnan(d[Jj]) ) {
+    if ( PetscIsNanReal(d[Jj]) ) {
 
       PetscPrintf(PETSC_COMM_WORLD,"A = %.15e, QR = %.15e, p = %.15e, T = %.15e\n", A[Jj], B[Jj], p[Jj], T[Jj]);
       PetscPrintf(PETSC_COMM_WORLD,"AA = %.15e, BB = %.15e, a = %.15e, b = %.15e, c = %.15e\n", AA, BB, a, b, c);
@@ -573,7 +573,7 @@ PetscErrorCode GrainSizeEvolution::computeSteadyStateGrainSize(const Vec& sdev, 
       PetscPrintf(PETSC_COMM_WORLD,"b/(a-c) = %.15e\n", b/(a-c));
       PetscPrintf(PETSC_COMM_WORLD,"sdev = %.15e\n", s[Jj]);
     }
-    if ( std::isinf(d[Jj]) ) {
+    if ( PetscIsInfReal(d[Jj]) ) {
 
       PetscPrintf(PETSC_COMM_WORLD,"A = %.15e, QR = %.15e, p = %.15e, T = %.15e\n", A[Jj], B[Jj], p[Jj], T[Jj]);
       PetscPrintf(PETSC_COMM_WORLD,"AA = %.15e, BB = %.15e, a = %.15e, b = %.15e, c = %.15e\n", AA, BB, a, b, c);
@@ -582,8 +582,8 @@ PetscErrorCode GrainSizeEvolution::computeSteadyStateGrainSize(const Vec& sdev, 
       PetscPrintf(PETSC_COMM_WORLD,"sdev = %.15e\n", s[Jj]);
     }
 
-    assert(!std::isnan(d[Jj]));
-    assert(!std::isinf(d[Jj]));
+    assert(!PetscIsNanReal(d[Jj]));
+    assert(!PetscIsInfReal(d[Jj]));
 
     Jj++;
   }

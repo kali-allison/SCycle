@@ -534,8 +534,8 @@ PetscErrorCode HeatEquation::constructMapV()
     Jj = 0;
     for (Ii=Istart;Ii<Iend;Ii++) {
       g[Jj] = exp(-y[Jj]*y[Jj] / (2.*w[Jj]*w[Jj])) / sqrt(2. * M_PI) / w[Jj];
-      assert(!std::isnan(g[Jj]));
-      assert(!std::isinf(g[Jj]));
+      assert(!PetscIsNanReal(g[Jj]));
+      assert(!PetscIsInfReal(g[Jj]));
       Jj++;
     }
     VecRestoreArrayRead(*_y,&y);

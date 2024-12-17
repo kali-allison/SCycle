@@ -1490,14 +1490,14 @@ PetscErrorCode PowerLaw::updateSSb(map<string,Vec>& varSS,const PetscScalar time
     PetscScalar gVxz0 = -sxz[Jj]/mu[Jj];
     gxy[Jj] = gVxy_t[Jj] * time + gVxy0;
     gxz[Jj] = gVxz_t[Jj] * time + gVxz0;
-    assert(!std::isnan(mu[Jj]));
-    assert(!std::isnan(time));
-    assert(!std::isnan(sxy[Jj]));
-    assert(!std::isnan(sxz[Jj]));
-    assert(!std::isnan(gVxy0));
-    assert(!std::isnan(gVxz0));
-    assert(!std::isnan(gVxy_t[Jj]));
-    assert(!std::isnan(gVxz_t[Jj]));
+    assert(!PetscIsNanReal(mu[Jj]));
+    assert(!PetscIsNanReal(time));
+    assert(!PetscIsNanReal(sxy[Jj]));
+    assert(!PetscIsNanReal(sxz[Jj]));
+    assert(!PetscIsNanReal(gVxy0));
+    assert(!PetscIsNanReal(gVxz0));
+    assert(!PetscIsNanReal(gVxy_t[Jj]));
+    assert(!PetscIsNanReal(gVxz_t[Jj]));
     Jj++;
   }
   VecRestoreArrayRead(_mu,&mu);

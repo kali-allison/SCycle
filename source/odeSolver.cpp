@@ -561,7 +561,7 @@ PetscReal RK32::computeError()
       VecPointwiseDivide(errVec,errVec,_y4[key]);
       VecMax(errVec,NULL,&err);
       VecDestroy(&errVec);
-      assert(!std::isinf(err));
+      assert(!PetscIsInfReal(err));
       _totErr += err / (_scale[i]);
     }
   }
@@ -1096,7 +1096,7 @@ PetscReal RK43::computeError()
       VecPointwiseDivide(errVec,errVec,_y4[key]);
       VecMax(errVec,NULL,&err);
       VecDestroy(&errVec);
-      assert(!std::isinf(err));
+      assert(!PetscIsInfReal(err));
       _totErr += err / (_scale[i]);
     }
   }

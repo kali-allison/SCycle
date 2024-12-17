@@ -85,10 +85,10 @@ double anyIsnan(const Vec& vec, string str)
   VecGetArrayRead(vec,&val);
   PetscInt Jj = 0;
   for (PetscInt Ii=Istart;Ii<Iend;Ii++) {
-    if (std::isnan(val[Jj]) || std::isinf(val[Jj])) {
+    if (PetscIsNanReal(val[Jj]) || PetscIsInfReal(val[Jj])) {
       PetscPrintf(PETSC_COMM_WORLD,str.c_str());
-      assert(!std::isnan(val[Jj]));
-      assert(!std::isinf(val[Jj]));
+      assert(!PetscIsNanReal(val[Jj]));
+      assert(!PetscIsInfReal(val[Jj]));
     }
     Jj++;
   }
@@ -109,14 +109,14 @@ double changeAnyIsnan(Vec& vec, string str, float newVal)
   PetscInt Jj = 0;
   PetscInt hasBeenPrinted = 0;
   for (PetscInt Ii=Istart;Ii<Iend;Ii++) {
-    if (std::isnan(val[Jj]) || std::isinf(val[Jj])) {
+    if (PetscIsNanReal(val[Jj]) || PetscIsInfReal(val[Jj])) {
       if (hasBeenPrinted == 0) {
         PetscPrintf(PETSC_COMM_WORLD,str.c_str());
         hasBeenPrinted = 1;
       }
       val[Jj] = newVal;
-      //~ assert(!std::isnan(val[Jj]));
-      //~ assert(!std::isinf(val[Jj]));
+      //~ assert(!PetscIsNanReal(val[Jj]));
+      //~ assert(!PetscIsInfReal(val[Jj]));
     }
     Jj++;
   }
@@ -320,7 +320,7 @@ double computeMaxDiff_scaleVec1(const Vec& vec1,const Vec& vec2)
   ierr = VecAbs(diff);                                                  CHKERRQ(ierr);
   ierr = VecPointwiseDivide(diff,diff,vec1);                            CHKERRQ(ierr);
   ierr = VecMax(diff,NULL,&err);                                        CHKERRQ(ierr);
-  assert(!std::isinf(err));
+  assert(!PetscIsInfReal(err));
 
   VecDestroy(&diff);
 

@@ -275,8 +275,8 @@ PetscErrorCode Domain::checkInput()
 
   assert(_order == 2 || _order == 4);
   assert(_Ly > 0 && _Lz > 0);
-  assert(_dq > 0 && !std::isnan(_dq));
-  assert(_dr > 0 && !std::isnan(_dr));
+  assert(_dq > 0 && !PetscIsNanReal(_dq));
+  assert(_dr > 0 && !PetscIsNanReal(_dr));
 
   //~ assert(_ckpt >= 0 && _ckptNumber >= 0);
   //~ assert(_interval >= 0);

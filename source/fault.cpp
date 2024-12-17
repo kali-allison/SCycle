@@ -1268,12 +1268,12 @@ PetscErrorCode ComputeVel_qd::computeVel(PetscScalar *slipVelA, const PetscScala
       right = _tauQS[Jj] / _eta[Jj];
 
       // check bounds
-      if (std::isnan(left)) {
+      if (PetscIsNanReal(left)) {
         PetscPrintf(PETSC_COMM_WORLD,"\n\nError in ComputeVel_qd::computeVel: left bound evaluated to NaN.\n");
         PetscPrintf(PETSC_COMM_WORLD,"tauQS = %g, eta = %g, left = %g\n",_tauQS[Jj],_eta[Jj],left);
         assert(0);
       }
-      if (std::isnan(right)) {
+      if (PetscIsNanReal(right)) {
         PetscPrintf(PETSC_COMM_WORLD,"\n\nError in ComputeVel_qd::computeVel: right bound evaluated to NaN.\n");
         PetscPrintf(PETSC_COMM_WORLD,"tauQS = %g, eta = %g, right = %g\n",_tauQS[Jj],_eta[Jj],right);
         assert(0);
@@ -1318,8 +1318,8 @@ PetscErrorCode ComputeVel_qd::getResid(const PetscInt Jj,const PetscScalar vel,P
   PetscScalar stress =_tauQS[Jj] - _eta[Jj]*vel;
 
   *out = strength - stress;
-  assert(!std::isnan(*out));
-  assert(!std::isinf(*out));
+  assert(!PetscIsNanReal(*out));
+  assert(!PetscIsInfReal(*out));
 
   return ierr;
 }
@@ -1340,7 +1340,7 @@ PetscErrorCode ComputeVel_qd::getResid(const PetscInt Jj,const PetscScalar vel,P
   // derivative with respect to slipVel
   *J = A*vel/sqrt(B*B*vel*vel + 1.) + _eta[Jj];
 
-  if (std::isinf(*out)) {
+  if (PetscIsInfReal(*out)) {
     PetscPrintf(PETSC_COMM_WORLD,"Jj = %i\n",Jj);
     PetscPrintf(PETSC_COMM_WORLD,"strength = %.9e\n",strength);
     PetscPrintf(PETSC_COMM_WORLD,"stress = %.9e\n",stress);
@@ -1349,10 +1349,10 @@ PetscErrorCode ComputeVel_qd::getResid(const PetscInt Jj,const PetscScalar vel,P
     PetscPrintf(PETSC_COMM_WORLD,"psi = %.9e, a = %.9e, exp(_psi[Jj]/_a[Jj]) = %.9e\n",_psi[Jj],_a[Jj],exp(_psi[Jj]/_a[Jj]));
   }
 
-  assert(!std::isnan(*out));
-  assert(!std::isinf(*out));
-  assert(!std::isnan(*J));
-  assert(!std::isinf(*J));
+  assert(!PetscIsNanReal(*out));
+  assert(!PetscIsInfReal(*out));
+  assert(!PetscIsNanReal(*J));
+  assert(!PetscIsInfReal(*J));
 
   return ierr;
 }
@@ -2045,11 +2045,11 @@ PetscErrorCode ComputeVel_fd::computeVel(PetscScalar* slipVelA, const PetscScala
       left = 0.;
       right = abs(_Phi[Jj]);
       // check bounds
-      if (std::isnan(left)) {
+      if (PetscIsNanReal(left)) {
         PetscPrintf(PETSC_COMM_WORLD,"\n\nError in ComputeVel_fd::computeVel: left bound evaluated to NaN.\n");
         assert(0);
       }
-      if (std::isnan(right)) {
+      if (PetscIsNanReal(right)) {
         PetscPrintf(PETSC_COMM_WORLD,"\n\nError in ComputeVel_fd::computeVel: right bound evaluated to NaN.\n");
         assert(0);
       }
@@ -2089,8 +2089,8 @@ PetscErrorCode ComputeVel_fd::getResid(const PetscInt Jj,const PetscScalar vel,P
   PetscScalar stress = abs(_Phi[Jj]) - vel; // stress on fault
 
   *out = _fricPen[Jj] * strength - stress;
-  assert(!std::isnan(*out));
-  assert(!std::isinf(*out));
+  assert(!PetscIsNanReal(*out));
+  assert(!PetscIsInfReal(*out));
   return ierr;
 }
 
@@ -2116,8 +2116,8 @@ PetscErrorCode ComputeVel_fd::getResid(const PetscInt Jj,const PetscScalar vel,P
 
   *J = 1 + _fricPen[Jj] * A * B / sqrt(1. + B * B * vel * vel);
 
-  assert(!std::isnan(*out));
-  assert(!std::isinf(*out));
+  assert(!PetscIsNanReal(*out));
+  assert(!PetscIsInfReal(*out));
   return ierr;
 }
 
@@ -2151,11 +2151,11 @@ PetscErrorCode ComputeAging_fd::computeLaw(const PetscScalar rootTol, PetscInt& 
     //~ right = 2*_psi[Jj];
 
     // check bounds
-    if (std::isnan(left)) {
+    if (PetscIsNanReal(left)) {
       PetscPrintf(PETSC_COMM_WORLD,"\n\nError in ComputeVel_qd::computeVel: left bound evaluated to NaN.\n");
       assert(0);
     }
-    if (std::isnan(right)) {
+    if (PetscIsNanReal(right)) {
       PetscPrintf(PETSC_COMM_WORLD,"\n\nError in ComputeVel_qd::computeVel: right bound evaluated to NaN.\n");
       assert(0);
     }
@@ -2194,8 +2194,8 @@ PetscErrorCode ComputeAging_fd::getResid(const PetscInt Jj,const PetscScalar sta
   PetscScalar G = agingLaw_psi((_psiPrev[Jj] + state)/2.0, _slipVel[Jj], _b[Jj], _f0, _v0, _Dc[Jj]);
   PetscScalar temp = state - _psiPrev[Jj];
   *out = -2 * _deltaT * G + temp;
-  assert(!std::isnan(*out));
-  assert(!std::isinf(*out));
+  assert(!PetscIsNanReal(*out));
+  assert(!PetscIsInfReal(*out));
   return ierr;
 }
 
@@ -2211,8 +2211,8 @@ PetscErrorCode ComputeAging_fd::getResid(const PetscInt Jj,const PetscScalar sta
 
   *J = 1 + _deltaT * _v0 / _Dc[Jj] * exp((_f0 - (_psiPrev[Jj] + state)/2.)/_b[Jj]);
 
-  assert(!std::isnan(*out));
-  assert(!std::isinf(*out));
+  assert(!PetscIsNanReal(*out));
+  assert(!PetscIsInfReal(*out));
 
   return ierr;
 }
@@ -2247,11 +2247,11 @@ PetscErrorCode ComputeSlipLaw_fd::computeLaw(const PetscScalar rootTol, PetscInt
     //~ right = 2*_psi[Jj];
 
     // check bounds
-    if (std::isnan(left)) {
+    if (PetscIsNanReal(left)) {
       PetscPrintf(PETSC_COMM_WORLD,"\n\nError in ComputeVel_qd::computeVel: left bound evaluated to NaN.\n");
       assert(0);
     }
-    if (std::isnan(right)) {
+    if (PetscIsNanReal(right)) {
       PetscPrintf(PETSC_COMM_WORLD,"\n\nError in ComputeVel_qd::computeVel: right bound evaluated to NaN.\n");
       assert(0);
     }
@@ -2291,8 +2291,8 @@ PetscErrorCode ComputeSlipLaw_fd::getResid(const PetscInt Jj,const PetscScalar s
   PetscScalar temp = state - _psiPrev[Jj];
   *out = -2 * _deltaT * G + temp;
 
-  assert(!std::isnan(*out));
-  assert(!std::isinf(*out));
+  assert(!PetscIsNanReal(*out));
+  assert(!PetscIsInfReal(*out));
   return ierr;
 }
 
@@ -2309,8 +2309,8 @@ PetscErrorCode ComputeSlipLaw_fd::getResid(const PetscInt Jj,const PetscScalar s
   PetscScalar A = abs(_slipVel[Jj]) / 2. / _v0 * exp((_psiPrev[Jj] + state) / 2.0 / _a[Jj]);
   *J = 1 + _deltaT * abs(_slipVel[Jj]) / _Dc[Jj] * A / sqrt(1 + A * A);
 
-  assert(!std::isnan(*out));
-  assert(!std::isinf(*out));
+  assert(!PetscIsNanReal(*out));
+  assert(!PetscIsInfReal(*out));
 
   return ierr;
 }
@@ -2346,11 +2346,11 @@ PetscErrorCode ComputeFlashHeating_fd::computeLaw(const PetscScalar rootTol, Pet
     //~ right = 2*_psi[Jj];
 
     // check bounds
-    if (std::isnan(left)) {
+    if (PetscIsNanReal(left)) {
       PetscPrintf(PETSC_COMM_WORLD,"\n\nError in ComputeVel_qd::computeVel: left bound evaluated to NaN.\n");
       assert(0);
     }
-    if (std::isnan(right)) {
+    if (PetscIsNanReal(right)) {
       PetscPrintf(PETSC_COMM_WORLD,"\n\nError in ComputeVel_qd::computeVel: right bound evaluated to NaN.\n");
       assert(0);
     }
@@ -2390,8 +2390,8 @@ PetscErrorCode ComputeFlashHeating_fd::getResid(const PetscInt Jj, const PetscSc
   PetscScalar temp = state - _psiPrev[Jj];
   *out = -2 * _deltaT * G + temp;
 
-  assert(!std::isnan(*out));
-  assert(!std::isinf(*out));
+  assert(!PetscIsNanReal(*out));
+  assert(!PetscIsInfReal(*out));
   return ierr;
 }
 
@@ -2408,8 +2408,8 @@ PetscErrorCode ComputeFlashHeating_fd::getResid(const PetscInt Jj,const PetscSca
   PetscScalar A = abs(_slipVel[Jj]) / 2. / _v0 * exp((_psiPrev[Jj] + state) / 2.0 / _a[Jj]);
   *J = 1 + _deltaT * abs(_slipVel[Jj]) / _Dc[Jj] * A / sqrt(1 + A * A);
 
-  assert(!std::isnan(*out));
-  assert(!std::isinf(*out));
+  assert(!PetscIsNanReal(*out));
+  assert(!PetscIsInfReal(*out));
 
   return ierr;
 }
@@ -2422,11 +2422,11 @@ PetscScalar agingLaw_psi(const PetscScalar& psi, const PetscScalar& slipVel, con
 {
   PetscScalar A = exp( (double) (f0-psi)/b );
   PetscScalar dstate = 0.;
-  if ( !std::isinf(A) && b>1e-3 ) {
+  if ( !PetscIsInfReal(A) && b>1e-3 ) {
     dstate = (PetscScalar) (b*v0/Dc)*( A - slipVel/v0 );
   }
-  assert(!std::isnan(dstate));
-  assert(!std::isinf(dstate));
+  assert(!PetscIsNanReal(dstate));
+  assert(!PetscIsInfReal(dstate));
   return dstate;
 }
 
@@ -2449,11 +2449,11 @@ PetscErrorCode agingLaw_psi_Vec(Vec& dstate, const Vec& psi, const Vec& slipVel,
   ierr = VecGetOwnershipRange(psi,&Istart,&Iend); // local portion of global Vec index
   for (PetscInt Ii=Istart;Ii<Iend;Ii++) {
     dstateA[Jj] = agingLaw_psi(psiA[Jj], slipVelA[Jj], bA[Jj], f0, v0, DcA[Jj]);
-    if ( std::isnan(dstateA[Jj]) || std::isinf(dstateA[Jj]) ) {
+    if ( PetscIsNanReal(dstateA[Jj]) || PetscIsInfReal(dstateA[Jj]) ) {
       PetscPrintf(PETSC_COMM_WORLD,"[%i]: dpsi = %g, psi = %g, slipVel = %g, a = %g, b = %g, f0 = %g, v0 = %g, Dc = %g\n",
       Jj,dstateA[Jj], psiA[Jj], slipVelA[Jj], aA[Jj], bA[Jj], f0, v0, DcA[Jj]);
-      assert(!std::isnan(dstateA[Jj]));
-      assert(!std::isinf(dstateA[Jj]));
+      assert(!PetscIsNanReal(dstateA[Jj]));
+      assert(!PetscIsInfReal(dstateA[Jj]));
     }
     Jj++;
   }
@@ -2473,8 +2473,8 @@ PetscScalar agingLaw_theta(const PetscScalar& theta, const PetscScalar& slipVel,
 {
   PetscScalar dstate = 1. - theta*abs(slipVel)/Dc;
 
-  assert(!std::isnan(dstate));
-  assert(!std::isinf(dstate));
+  assert(!PetscIsNanReal(dstate));
+  assert(!PetscIsInfReal(dstate));
   return dstate;
 }
 
@@ -2519,8 +2519,8 @@ PetscScalar slipLaw_psi(const PetscScalar& psi, const PetscScalar& slipVel, cons
 
   PetscScalar dstate = -absV/Dc * (f - fss);
 
-  assert(!std::isnan(dstate));
-  assert(!std::isinf(dstate));
+  assert(!PetscIsNanReal(dstate));
+  assert(!PetscIsInfReal(dstate));
   return dstate;
 }
 
@@ -2563,8 +2563,8 @@ PetscScalar slipLaw_theta(const PetscScalar& state, const PetscScalar& slipVel, 
   PetscScalar dstate = 0.;
   if (A != 0.) { dstate = -A*log(A); }
 
-  assert(!std::isnan(dstate));
-  assert(!std::isinf(dstate));
+  assert(!PetscIsNanReal(dstate));
+  assert(!PetscIsInfReal(dstate));
   return dstate;
 }
 
@@ -2626,8 +2626,8 @@ PetscScalar flashHeating_psi(const PetscScalar& psi, const PetscScalar& slipVel,
 
   PetscScalar dpsi = -absV/Dc *(f - fss);
 
-  assert(!std::isnan(dpsi));
-  assert(!std::isinf(dpsi));
+  assert(!PetscIsNanReal(dpsi));
+  assert(!PetscIsInfReal(dpsi));
   return dpsi;
 }
 
