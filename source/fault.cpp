@@ -548,7 +548,7 @@ PetscErrorCode Fault::writeContext(const string outputDir, PetscViewer& viewer)
   if (!_stateLaw.compare("flashHeating")) {
     ierr = PetscViewerASCIIPrintf(viewer_ascii,"fw = %.15e\n",_fw);CHKERRQ(ierr);
     ierr = PetscViewerASCIIPrintf(viewer_ascii,"tau_c = %.15e # (GPa)\n",_tau_c);CHKERRQ(ierr);
-    ierr = PetscViewerASCIIPrintf(viewer_ascii,"D = %.15e # (um)\n",_D);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(viewer_ascii,"D = %.15e # (um)\n",_D_fh);CHKERRQ(ierr);
     ierr = PetscViewerASCIIPrintf(viewer_ascii,"VwType = %s\n",_VwType.c_str());CHKERRQ(ierr);
   }
   ierr = PetscViewerDestroy(&viewer_ascii);CHKERRQ(ierr);
