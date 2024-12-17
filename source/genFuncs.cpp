@@ -86,7 +86,7 @@ double anyIsnan(const Vec& vec, string str)
   PetscInt Jj = 0;
   for (PetscInt Ii=Istart;Ii<Iend;Ii++) {
     if (PetscIsNanReal(val[Jj]) || PetscIsInfReal(val[Jj])) {
-      PetscPrintf(PETSC_COMM_WORLD,str.c_str());
+      PetscPrintf(PETSC_COMM_WORLD,"%s",str.c_str());
       assert(!PetscIsNanReal(val[Jj]));
       assert(!PetscIsInfReal(val[Jj]));
     }
