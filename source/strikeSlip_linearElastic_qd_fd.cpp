@@ -715,22 +715,22 @@ bool StrikeSlip_LinearElastic_qd_fd::checkSwitchRegime(const Fault* fault)
   bool mustSwitch = false;
 
   // if using max slip velocity as switching criteria
-  //~ Vec absSlipVel;
-  //~ VecDuplicate(fault->_slipVel, &absSlipVel);
-  //~ VecCopy(fault->_slipVel, absSlipVel);
-  //~ PetscScalar maxV;
-  //~ VecAbs(absSlipVel);
-  //~ VecMax(absSlipVel, NULL, &maxV);
-  //~ VecDestroy(&absSlipVel);
+  Vec absSlipVel;
+  VecDuplicate(fault->_slipVel, &absSlipVel);
+  VecCopy(fault->_slipVel, absSlipVel);
+  PetscScalar maxV;
+  VecAbs(absSlipVel);
+  VecMax(absSlipVel, NULL, &maxV);
+  VecDestroy(&absSlipVel);
 
   // if using R = eta*V / tauQS
-  Vec R; VecDuplicate(fault->_slipVel,&R);
-  VecPointwiseMult(R,_fault_qd->_eta_rad,fault->_slipVel);
-  VecPointwiseDivide(R,R,fault->_tauQSP);
-  PetscScalar maxV;
-  VecMax(R,NULL,&maxV);
-  VecCopy(R,_Req);
-  VecDestroy(&R);
+  //Vec R; VecDuplicate(fault->_slipVel,&R);
+  //VecPointwiseMult(R,_fault_qd->_eta_rad,fault->_slipVel);
+  //VecPointwiseDivide(R,R,fault->_tauQSP);
+  //PetscScalar maxV;
+  //VecMax(R,NULL,&maxV);
+  //VecCopy(R,_Req);
+  //VecDestroy(&R);
 
 
 
